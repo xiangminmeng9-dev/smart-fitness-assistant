@@ -29,7 +29,7 @@ class UserProfile(Base):
     fitness_goal = Column(Enum('减脂', '增肌', name='fitness_goal_enum'), default='减脂')
     fitness_frequency = Column(Integer, default=3)  # times per week
     target_weight = Column(DECIMAL(5, 2))  # kg
-    training_cycle_weeks = Column(Integer, default=4)
+    training_cycle_days = Column(Integer, default=28)
     cycle_start_date = Column(Date)
     selected_muscle_groups = Column(JSON)  # e.g. ["胸","背","肩","有氧","腹部","腿","手臂"]
     location_lat = Column(DECIMAL(10, 8))

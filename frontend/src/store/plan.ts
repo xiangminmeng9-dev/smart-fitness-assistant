@@ -19,8 +19,8 @@ interface PlanStore {
   toggleComplete: (planId: number, completed: boolean) => Promise<void>;
   toggleExerciseComplete: (planId: number, groupIndex: number, exerciseIndex: number, completed: boolean) => Promise<void>;
   setSelectedDate: (date: string) => void;
-  fetchWeather: (lat?: number, lng?: number) => Promise<void>;
-  fetchMotivation: () => Promise<void>;
+  fetchWeather: (lat?: number, lng?: number, targetDate?: string) => Promise<void>;
+  fetchMotivation: (targetDate?: string) => Promise<void>;
 }
 
 const usePlanStore = create<PlanStore>((set, get) => ({
@@ -92,18 +92,18 @@ const usePlanStore = create<PlanStore>((set, get) => ({
     }
   },
 
-  fetchWeather: async (lat?: number, lng?: number) => {
+  fetchWeather: async (lat?: number, lng?: number, targetDate?: string) => {
     try {
-      const weather = await planApi.getWeather(lat, lng);
+      const weather = await planApi.getWeather(lat, lng, targetDate);
       set({ weather });
     } catch {
       // silent fail for weather
     }
   },
 
-  fetchMotivation: async () => {
+  fetchMotivation: async (targetDate?: string) => {
     try {
-      const motivation = await planApi.getMotivation();
+      const motivation = await planApi.getMotivation(targetDate);
       set({ motivation });
     } catch {
       // silent fail for motivation

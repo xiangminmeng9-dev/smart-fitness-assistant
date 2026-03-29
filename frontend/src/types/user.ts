@@ -8,7 +8,7 @@ export interface UserProfile {
   fitness_goal?: '减脂' | '增肌';
   fitness_frequency?: number;
   target_weight?: number;
-  training_cycle_weeks?: number;
+  training_cycle_days?: number;
   cycle_start_date?: string;
   selected_muscle_groups?: string[];
   location_lat?: number;
@@ -25,7 +25,7 @@ export interface UserProfileCreate {
   fitness_goal?: '减脂' | '增肌';
   fitness_frequency?: number;
   target_weight?: number;
-  training_cycle_weeks?: number;
+  training_cycle_days?: number;
   cycle_start_date?: string;
   selected_muscle_groups?: string[];
   location_lat?: number;
@@ -40,7 +40,7 @@ export interface UserProfileUpdate {
   fitness_goal?: '减脂' | '增肌';
   fitness_frequency?: number;
   target_weight?: number;
-  training_cycle_weeks?: number;
+  training_cycle_days?: number;
   cycle_start_date?: string;
   selected_muscle_groups?: string[];
   location_lat?: number;

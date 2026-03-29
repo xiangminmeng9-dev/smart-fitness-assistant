@@ -25,6 +25,7 @@ def _migrate_db():
         ("user_profiles", "gender", "VARCHAR(10) DEFAULT 'male'"),
         ("user_profiles", "target_weight", "DECIMAL(5,2)"),
         ("user_profiles", "training_cycle_weeks", "INTEGER DEFAULT 4"),
+        ("user_profiles", "training_cycle_days", "INTEGER DEFAULT 28"),
         ("user_profiles", "cycle_start_date", "DATE"),
         ("user_profiles", "selected_muscle_groups", "JSON"),
     ]

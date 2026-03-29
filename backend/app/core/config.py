@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     # Claude API
     CLAUDE_API_KEY: str = ""
+    CLAUDE_BASE_URL: str = "https://api.anthropic.com"
     CLAUDE_MODEL: str = "claude-opus-4-6"
 
     # Weather API

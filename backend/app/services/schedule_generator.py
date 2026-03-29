@@ -36,13 +36,25 @@ def get_week_intensity(week_num: int, total_weeks: int) -> str:
     return "heavy"
 
 
-def generate_all_combinations(muscle_groups: List[str], max_per_day: int = 3) -> List[List[str]]:
-    """Generate all possible training day combinations from selected muscle groups."""
+def generate_all_combinations(muscle_groups: List[str], frequency: int) -> List[List[str]]:
+    """Generate training day combinations with dynamic group size based on groups/frequency ratio."""
     if not muscle_groups:
         return []
+    num_groups = len(muscle_groups)
+    # Dynamic: how many groups per training day
+    import math
+    groups_per_day = max(1, min(3, math.ceil(num_groups / max(1, frequency))))
     all_combos = []
-    # Generate combos of size 2 and 3 (or 1 if few groups)
-    for size in range(min(2, len(muscle_groups)), min(max_per_day, len(muscle_groups)) + 1):
+    # Generate combos of the target size, plus +/- 1 for variety
+    sizes = set()
+    sizes.add(groups_per_day)
+    if groups_per_day > 1:
+        sizes.add(groups_per_day - 1)
+    if groups_per_day < min(3, num_groups):
+        sizes.add(groups_per_day + 1)
+    for size in sorted(sizes):
+        if size < 1 or size > num_groups:
+            continue
         for combo in combinations(muscle_groups, size):
             all_combos.append(list(combo))
     return all_combos
@@ -65,7 +77,7 @@ def generate_week_schedule(
     if not muscle_groups:
         return {}
 
-    all_combos = generate_all_combinations(muscle_groups)
+    all_combos = generate_all_combinations(muscle_groups, frequency)
     if not all_combos:
         return {}
 
@@ -104,7 +116,7 @@ def get_today_muscle_groups(
     selected_muscle_groups: Optional[List[str]],
     fitness_frequency: int,
     cycle_start_date: Optional[date],
-    training_cycle_weeks: int,
+    training_cycle_days: int,
     plan_date: date,
 ) -> Optional[List[str]]:
     """
@@ -115,14 +127,13 @@ def get_today_muscle_groups(
         return None
 
     frequency = max(1, min(7, fitness_frequency or 3))
-    total_weeks = training_cycle_weeks or 4
+    total_days = training_cycle_days or 28
 
     day_offset = (plan_date - cycle_start_date).days
     if day_offset < 0:
         return None
 
-    cycle_days = total_weeks * 7
-    day_in_cycle = day_offset % cycle_days
+    day_in_cycle = day_offset % total_days
     week_in_cycle = day_in_cycle // 7
     weekday = day_in_cycle % 7
 
@@ -133,20 +144,24 @@ def get_today_muscle_groups(
 
 def get_cycle_progress(
     cycle_start_date: Optional[date],
-    training_cycle_weeks: int,
+    training_cycle_days: int,
     plan_date: date,
 ) -> dict:
     """Return cycle progress info with periodization."""
-    total_weeks = training_cycle_weeks or 4
+    total_days = training_cycle_days or 28
     if not cycle_start_date:
-        return {"current_week": 1, "total_weeks": total_weeks, "progress_pct": 0, "intensity": "medium"}
+        return {"current_day": 1, "total_days": total_days, "progress_pct": 0, "intensity": "medium"}
 
     days_elapsed = (plan_date - cycle_start_date).days
-    current_week = min((days_elapsed // 7) + 1, total_weeks)
-    progress_pct = round((current_week / total_weeks) * 100)
+    current_day = min(days_elapsed + 1, total_days)
+    current_week = (days_elapsed // 7) + 1
+    total_weeks = max(1, total_days // 7)
+    progress_pct = round((current_day / total_days) * 100)
     intensity = get_week_intensity(current_week, total_weeks)
 
     return {
+        "current_day": current_day,
+        "total_days": total_days,
         "current_week": current_week,
         "total_weeks": total_weeks,
         "progress_pct": progress_pct,
@@ -202,7 +217,7 @@ def calculate_tdee(bmr: float, frequency: int) -> float:
 
 def calculate_daily_targets(
     weight_kg: float, height_cm: float, age: int, gender: str,
-    target_weight_kg: float, cycle_weeks: int, frequency: int,
+    target_weight_kg: float, cycle_days: int, frequency: int,
     fitness_goal: str,
 ) -> dict:
     """Calculate daily calorie and macro targets."""
@@ -210,7 +225,6 @@ def calculate_daily_targets(
     tdee = calculate_tdee(bmr, frequency)
 
     weight_diff = weight_kg - target_weight_kg
-    cycle_days = cycle_weeks * 7
     # 1kg fat ≈ 7700 kcal
     daily_adjustment = round((weight_diff * 7700) / cycle_days) if cycle_days > 0 else 0
 

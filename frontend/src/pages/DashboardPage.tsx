@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import usePlanStore from '../store/plan';
 import useProfileStore from '../store/profile';
-import type { WorkoutGroup, MealPlan } from '../types/plan';
+import type { WorkoutGroup, MealPlan, CalorieSummary as CalorieSummaryType } from '../types/plan';
 import type { UserProfile } from '../types/user';
 
 type MealSource = 'self_cook' | 'takeout' | 'eat_out';
@@ -22,21 +22,21 @@ const DashboardPage = () => {
   useEffect(() => {
     fetchTodayPlan(selectedDate);
     fetchProfile();
-    fetchMotivation();
   }, []);
 
   useEffect(() => {
+    fetchMotivation(selectedDate);
     if (profile?.location_lat && profile?.location_lng) {
-      fetchWeather(profile.location_lat, profile.location_lng);
+      fetchWeather(profile.location_lat, profile.location_lng, selectedDate);
       // Reverse geocode for display
       fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${profile.location_lat}&lon=${profile.location_lng}&zoom=10&accept-language=zh`)
         .then(r => r.json())
         .then(data => { if (data.display_name) setLocationName(data.display_name.split(',')[0]); })
         .catch(() => {});
     } else {
-      fetchWeather();
+      fetchWeather(undefined, undefined, selectedDate);
     }
-  }, [profile]);
+  }, [profile, selectedDate]);
 
   const handleGenerate = async () => {
     if (!profile) { navigate('/profile'); return; }
@@ -71,8 +71,8 @@ const DashboardPage = () => {
 
       {profile && <ProfileOverview profile={profile} />}
 
-      {profile?.training_cycle_weeks && profile?.cycle_start_date && (
-        <CycleProgress cycleStart={profile.cycle_start_date} cycleWeeks={profile.training_cycle_weeks} selectedDate={selectedDate} />
+      {profile?.training_cycle_days && profile?.cycle_start_date && (
+        <CycleProgress cycleStart={profile.cycle_start_date} cycleDays={profile.training_cycle_days} selectedDate={selectedDate} />
       )}
 
       {!todayPlan && (
@@ -118,7 +118,9 @@ const DashboardPage = () => {
           {/* Meal Plan */}
           <MealSection meals={plan.meal_plan} source={mealSource} onSourceChange={setMealSource} />
 
-          <CalorieSummary burned={plan.total_calories_burned} intake={plan.total_calories_intake} />
+          {plan.calorie_summary && (
+            <CalorieSummary summary={plan.calorie_summary} />
+          )}
 
           {plan.recommendations?.length > 0 && (
             <RecommendationsCard items={plan.recommendations} />
@@ -335,24 +337,34 @@ function MealSection({ meals, source, onSourceChange }: { meals: MealPlan[]; sou
   );
 }
 
-function CalorieSummary({ burned, intake }: { burned: number; intake: number }) {
-  const diff = intake - burned;
+function CalorieSummary({ summary }: { summary: CalorieSummaryType }) {
+  const { bmr, exercise_burned, total_intake, net_calories } = summary;
+  const isDeficit = net_calories < 0;
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">热量总结</h2>
-      <div className="grid grid-cols-3 gap-4 text-center">
-        <div className="p-4 bg-orange-50 rounded-xl">
-          <p className="text-2xl font-bold text-orange-600">{burned}</p>
-          <p className="text-sm text-gray-500 mt-1">消耗 (千卡)</p>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
         <div className="p-4 bg-green-50 rounded-xl">
-          <p className="text-2xl font-bold text-green-600">{intake}</p>
+          <p className="text-2xl font-bold text-green-600">{total_intake}</p>
           <p className="text-sm text-gray-500 mt-1">摄入 (千卡)</p>
         </div>
-        <div className={`p-4 rounded-xl ${diff > 0 ? 'bg-blue-50' : 'bg-purple-50'}`}>
-          <p className={`text-2xl font-bold ${diff > 0 ? 'text-blue-600' : 'text-purple-600'}`}>{diff > 0 ? '+' : ''}{diff}</p>
-          <p className="text-sm text-gray-500 mt-1">净摄入 (千卡)</p>
+        <div className="p-4 bg-orange-50 rounded-xl">
+          <p className="text-2xl font-bold text-orange-600">{exercise_burned}</p>
+          <p className="text-sm text-gray-500 mt-1">运动消耗 (千卡)</p>
         </div>
+        <div className="p-4 bg-blue-50 rounded-xl">
+          <p className="text-2xl font-bold text-blue-600">{bmr}</p>
+          <p className="text-sm text-gray-500 mt-1">基础代谢 (千卡)</p>
+        </div>
+        <div className={`p-4 rounded-xl ${isDeficit ? 'bg-purple-50' : 'bg-red-50'}`}>
+          <p className={`text-2xl font-bold ${isDeficit ? 'text-purple-600' : 'text-red-600'}`}>{net_calories > 0 ? '+' : ''}{net_calories}</p>
+          <p className="text-sm text-gray-500 mt-1">{isDeficit ? '热量缺口' : '热量盈余'} (千卡)</p>
+        </div>
+      </div>
+      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+        <p className="text-xs text-gray-500 text-center">
+          净热量 = 摄入({total_intake}) - 运动消耗({exercise_burned}) - 基础代谢({bmr}) = {net_calories} 千卡
+        </p>
       </div>
     </div>
   );
@@ -377,13 +389,12 @@ function RecommendationsCard({ items }: { items: string[] }) {
   );
 }
 
-function CycleProgress({ cycleStart, cycleWeeks, selectedDate }: { cycleStart: string; cycleWeeks: number; selectedDate: string }) {
+function CycleProgress({ cycleStart, cycleDays, selectedDate }: { cycleStart: string; cycleDays: number; selectedDate: string }) {
   const start = new Date(cycleStart + 'T00:00:00');
   const current = new Date(selectedDate + 'T00:00:00');
   const daysElapsed = Math.max(0, Math.floor((current.getTime() - start.getTime()) / 86400000));
-  const totalDays = cycleWeeks * 7;
-  const currentWeek = Math.min(Math.floor(daysElapsed / 7) + 1, cycleWeeks);
-  const progressPct = Math.min(Math.round((daysElapsed / totalDays) * 100), 100);
+  const currentDay = Math.min(daysElapsed + 1, cycleDays);
+  const progressPct = Math.min(Math.round((currentDay / cycleDays) * 100), 100);
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-5">
@@ -391,7 +402,7 @@ function CycleProgress({ cycleStart, cycleWeeks, selectedDate }: { cycleStart: s
         <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
           <span>📅</span> 训练周期进度
         </h3>
-        <span className="text-sm text-gray-500">第 {currentWeek} 周 / 共 {cycleWeeks} 周</span>
+        <span className="text-sm text-gray-500">第 {currentDay} 天 / 共 {cycleDays} 天</span>
       </div>
       <div className="w-full bg-gray-200 rounded-full h-2.5">
         <div className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all" style={{ width: `${progressPct}%` }} />

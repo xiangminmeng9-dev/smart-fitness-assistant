@@ -83,7 +83,7 @@ async def generate_new_fitness_plan(
         selected_muscle_groups=profile.selected_muscle_groups,
         fitness_frequency=profile.fitness_frequency or 3,
         cycle_start_date=profile.cycle_start_date,
-        training_cycle_weeks=profile.training_cycle_weeks or 4,
+        training_cycle_days=profile.training_cycle_days or 28,
         plan_date=plan_data.plan_date,
     )
 

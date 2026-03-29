@@ -36,7 +36,7 @@ class UserProfileBase(BaseModel):
     fitness_goal: Optional[str] = Field(None, description="健身目标")
     fitness_frequency: Optional[int] = Field(None, ge=1, le=7, description="每周健身频次")
     target_weight: Optional[float] = Field(None, ge=30, le=300, description="目标体重 (kg)")
-    training_cycle_weeks: Optional[int] = Field(None, ge=1, le=24, description="训练周期 (周)")
+    training_cycle_days: Optional[int] = Field(None, ge=7, le=180, description="训练周期 (天)")
     cycle_start_date: Optional[date] = Field(None, description="周期开始日期")
     selected_muscle_groups: Optional[List[str]] = Field(None, description="选择的肌群")
     location_lat: Optional[float] = Field(None, description="纬度")

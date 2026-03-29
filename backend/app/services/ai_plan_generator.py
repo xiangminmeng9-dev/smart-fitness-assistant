@@ -318,7 +318,7 @@ async def generate_fitness_plan(
             selected_muscle_groups=profile.selected_muscle_groups,
             fitness_frequency=profile.fitness_frequency or 3,
             cycle_start_date=profile.cycle_start_date,
-            training_cycle_weeks=profile.training_cycle_weeks or 4,
+            training_cycle_days=profile.training_cycle_days or 28,
             plan_date=plan_date,
         )
 
@@ -327,7 +327,7 @@ async def generate_fitness_plan(
         muscle_groups = []
 
     cycle_info = get_cycle_progress(
-        profile.cycle_start_date, profile.training_cycle_weeks or 4, plan_date
+        profile.cycle_start_date, profile.training_cycle_days or 28, plan_date
     )
 
     weight = float(profile.weight) if profile.weight else 70
@@ -335,12 +335,12 @@ async def generate_fitness_plan(
     age = profile.age or 25
     gender = profile.gender or "male"
     target_weight = float(profile.target_weight) if profile.target_weight else weight
-    cycle_weeks = profile.training_cycle_weeks or 4
+    cycle_days = profile.training_cycle_days or 28
     frequency = profile.fitness_frequency or 3
     goal = profile.fitness_goal or "减脂"
 
     targets = calculate_daily_targets(
-        weight, height, age, gender, target_weight, cycle_weeks, frequency, goal
+        weight, height, age, gender, target_weight, cycle_days, frequency, goal
     )
 
     # Day in cycle for meal variety
@@ -385,7 +385,7 @@ async def generate_fitness_plan(
 - 蛋白质目标：{targets['protein_g']}g | 脂肪：{targets['fat_g']}g | 碳水：{targets['carbs_g']}g
 
 训练周期：
-- 进度：第{cycle_info['current_week']}周 / 共{cycle_info['total_weeks']}周
+- 进度：第{cycle_info['current_day']}天 / 共{cycle_info['total_days']}天
 - 本周强度：{cycle_info.get('intensity', 'medium')}
 - 计划日期：{plan_date.isoformat()} ({weekday_name})
 - 周期第{day_in_cycle + 1}天
@@ -452,7 +452,7 @@ async def generate_fitness_plan(
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://api.anthropic.com/v1/messages",
+                f"{settings.CLAUDE_BASE_URL}/v1/messages",
                 headers={
                     "x-api-key": settings.CLAUDE_API_KEY,
                     "anthropic-version": "2023-06-01",

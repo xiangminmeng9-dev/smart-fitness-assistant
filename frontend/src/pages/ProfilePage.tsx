@@ -26,7 +26,7 @@ const ProfilePage = () => {
     target_weight: '',
     fitness_goal: '减脂' as '减脂' | '增肌',
     fitness_frequency: '3',
-    training_cycle_weeks: '4',
+    training_cycle_days: '28',
     selected_muscle_groups: [] as string[],
     location_lat: '',
     location_lng: '',
@@ -70,7 +70,7 @@ const ProfilePage = () => {
         target_weight: profile.target_weight?.toString() || '',
         fitness_goal: profile.fitness_goal || '减脂',
         fitness_frequency: profile.fitness_frequency?.toString() || '3',
-        training_cycle_weeks: profile.training_cycle_weeks?.toString() || '4',
+        training_cycle_days: profile.training_cycle_days?.toString() || '28',
         selected_muscle_groups: profile.selected_muscle_groups || [],
         location_lat: profile.location_lat?.toString() || '',
         location_lng: profile.location_lng?.toString() || '',
@@ -145,7 +145,7 @@ const ProfilePage = () => {
       target_weight: formData.target_weight ? parseFloat(formData.target_weight) : undefined,
       fitness_goal: formData.fitness_goal,
       fitness_frequency: parseInt(formData.fitness_frequency, 10),
-      training_cycle_weeks: parseInt(formData.training_cycle_weeks, 10),
+      training_cycle_days: parseInt(formData.training_cycle_days, 10),
       cycle_start_date: new Date().toISOString().split('T')[0],
       selected_muscle_groups: formData.selected_muscle_groups.length > 0 ? formData.selected_muscle_groups : undefined,
       location_lat: formData.location_lat ? parseFloat(formData.location_lat) : undefined,
@@ -377,21 +377,27 @@ const ProfilePage = () => {
 
             {/* Training Cycle */}
             <div>
-              <label htmlFor="training_cycle_weeks" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="training_cycle_days" className="block text-sm font-medium text-gray-700 mb-1">
                 训练周期
               </label>
-              <select
-                id="training_cycle_weeks"
-                name="training_cycle_weeks"
-                value={formData.training_cycle_weeks}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              >
-                {[2, 4, 6, 8, 12].map(w => (
-                  <option key={w} value={w}>{w} 周</option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-gray-500">系统将在周期内合理分配训练计划</p>
+              <div className="relative">
+                <input
+                  type="number"
+                  id="training_cycle_days"
+                  name="training_cycle_days"
+                  value={formData.training_cycle_days}
+                  onChange={handleChange}
+                  min="7"
+                  max="180"
+                  step="1"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  placeholder="例如：30"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  <span className="text-gray-500 text-sm">天</span>
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">建议7-180天，系统将在周期内合理分配训练计划</p>
             </div>
 
             {/* Muscle Group Selector */}
@@ -422,7 +428,7 @@ const ProfilePage = () => {
               </div>
               {formData.selected_muscle_groups.length > 0 && (
                 <p className="mt-2 text-sm text-blue-600">
-                  已选 {formData.selected_muscle_groups.length} 个肌群，每天最多安排 3 个肌群组合训练
+                  已选 {formData.selected_muscle_groups.length} 个肌群，系统将根据频次自动分配每日训练组合
                 </p>
               )}
             </div>
@@ -551,7 +557,7 @@ const ProfilePage = () => {
                     target_weight: '68.0',
                     fitness_goal: '减脂',
                     fitness_frequency: '4',
-                    training_cycle_weeks: '8',
+                    training_cycle_days: '60',
                     selected_muscle_groups: ['胸', '背', '肩', '腿', '有氧'],
                     location_lat: '39.9042',
                     location_lng: '116.4074',

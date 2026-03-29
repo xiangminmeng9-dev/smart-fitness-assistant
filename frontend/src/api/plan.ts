@@ -33,17 +33,21 @@ export const planApi = {
     return response.data;
   },
 
-  getWeather: async (lat?: number, lng?: number): Promise<WeatherInfo> => {
+  getWeather: async (lat?: number, lng?: number, targetDate?: string): Promise<WeatherInfo> => {
     const params = new URLSearchParams();
     if (lat !== undefined) params.append('lat', lat.toString());
     if (lng !== undefined) params.append('lng', lng.toString());
+    if (targetDate) params.append('target_date', targetDate);
     const query = params.toString();
     const response = await api.get(`/system/weather${query ? '?' + query : ''}`);
     return response.data;
   },
 
-  getMotivation: async (): Promise<MotivationInfo> => {
-    const response = await api.get('/system/motivation');
+  getMotivation: async (targetDate?: string): Promise<MotivationInfo> => {
+    const params = new URLSearchParams();
+    if (targetDate) params.append('target_date', targetDate);
+    const query = params.toString();
+    const response = await api.get(`/system/motivation${query ? '?' + query : ''}`);
     return response.data;
   },
 };

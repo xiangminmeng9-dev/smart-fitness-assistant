@@ -35,17 +35,24 @@ export interface MealPlan {
   eat_out: MealOption;
 }
 
+export interface CalorieSummary {
+  bmr: number;
+  exercise_burned: number;
+  total_intake: number;
+  net_calories: number;
+}
+
 export interface DailyPlanData {
   motivation_quote: string;
   weather_impact: string;
   training_split: string;
   split_day: string;
+  is_rest_day?: boolean;
   warmup: string[];
   workout_groups: WorkoutGroup[];
   cooldown: string[];
   meal_plan: MealPlan[];
-  total_calories_burned: number;
-  total_calories_intake: number;
+  calorie_summary: CalorieSummary;
   recommendations: string[];
 }
 
@@ -70,5 +77,5 @@ export interface WeatherInfo {
 
 export interface MotivationInfo {
   quote: string;
-  timestamp: string;
+  date: string;
 }
