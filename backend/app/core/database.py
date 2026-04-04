@@ -6,7 +6,16 @@ import os
 from app.core.config import settings
 
 # Create database engine based on DB_TYPE
-if settings.DB_TYPE == "sqlite":
+if os.environ.get("POSTGRES_URL"):
+    # Vercel Postgres injected URL
+    SQLALCHEMY_DATABASE_URL = os.environ.get("POSTGRES_URL").replace("postgres://", "postgresql://")
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        echo=settings.APP_ENV == "development"
+    )
+elif settings.DB_TYPE == "sqlite":
     db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "fitness.db")
     SQLALCHEMY_DATABASE_URL = f"sqlite:///{db_path}"
     engine = create_engine(
