@@ -1,5 +1,6 @@
 """
 Vercel Serverless entry point.
+Routes all /api/* requests to the FastAPI application.
 """
 import sys
 import os
@@ -7,19 +8,7 @@ import os
 # Add backend directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
-from app.main import app as fastapi_app
-
-# Create a wrapper that strips the /api prefix before passing to FastAPI
-async def handler(scope, receive, send):
-    if scope["type"] == "http":
-        path = scope["path"]
-        if path.startswith("/api"):
-            # Strip the /api prefix
-            new_path = path[4:]
-            if not new_path:
-                new_path = "/"
-            scope["path"] = new_path
-    return await fastapi_app(scope, receive, send)
-
-# Export the ASGI application for Vercel
-app = handler
+# FastAPI routes are already prefixed with /api (e.g. /api/auth, /api/plan)
+# Vercel rewrites /api/* to this file, preserving the full path
+# So no path stripping is needed
+from app.main import app
