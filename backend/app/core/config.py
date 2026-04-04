@@ -22,7 +22,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # Claude API
+    # AI Provider (system default)
+    AI_PROVIDER: str = "claude"  # claude, kimi, glm, minimax, deepseek
     CLAUDE_API_KEY: str = ""
     CLAUDE_BASE_URL: str = "https://api.anthropic.com"
     CLAUDE_MODEL: str = "claude-opus-4-6"
@@ -30,8 +31,8 @@ class Settings(BaseSettings):
     # Weather API
     WEATHER_API_KEY: str = ""
 
-    # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
+    # CORS - 支持外网访问时动态配置
+    CORS_ORIGINS: List[str] = ["*"]  # 生产环境建议改为具体域名
 
     # Logging
     LOG_LEVEL: str = "INFO"

@@ -1,5 +1,7 @@
-import { NavLink } from 'react-router-dom';
 import {
+  Cog6ToothIcon, NavLink } from 'react-router-dom';
+import {
+  Cog6ToothIcon,
   HomeIcon,
   UserIcon,
   ChartBarIcon,
@@ -14,6 +16,7 @@ const Sidebar = () => {
     { name: '健身计划', href: '/profile', icon: ChartBarIcon },
     { name: '健身小贴士', href: '/tips', icon: LightBulbIcon },
     { name: '日历视图', href: '/calendar', icon: CalendarIcon },
+    { name: 'AI 设置', href: '/settings', icon: Cog6ToothIcon },
   ];
 
   return (

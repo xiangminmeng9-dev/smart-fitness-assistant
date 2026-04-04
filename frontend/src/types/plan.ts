@@ -68,11 +68,15 @@ export interface FitnessPlan {
 
 export interface WeatherInfo {
   temperature: number;
+  temp_max?: number;
+  temp_min?: number;
   condition: string;
-  humidity: number;
+  humidity?: number;
   wind_speed: number;
   location: string;
   icon: string;
+  is_forecast?: boolean;
+  precipitation_probability?: number;
 }
 
 export interface MotivationInfo {

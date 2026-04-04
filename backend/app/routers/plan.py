@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta
 from typing import List, Optional
@@ -7,7 +7,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.user import User, FitnessPlan, UserProfile
+from app.models.user import User, FitnessPlan, UserProfile, UserModelConfig
 from app.schemas.plan import FitnessPlanCreate, FitnessPlanResponse, FitnessPlanGenerate
 from app.services.ai_plan_generator import generate_fitness_plan
 from app.services.schedule_generator import get_today_muscle_groups
@@ -18,11 +18,13 @@ router = APIRouter()
 async def get_fitness_plans(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    limit: int = Query(50, ge=1, le=100, description="返回记录数量限制"),
+    offset: int = Query(0, ge=0, description="偏移量，用于分页"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    获取用户健身计划列表
+    获取用户健身计划列表（支持分页）
     """
     query = db.query(FitnessPlan).filter(FitnessPlan.user_id == current_user.id)
 
@@ -31,8 +33,8 @@ async def get_fitness_plans(
     if end_date:
         query = query.filter(FitnessPlan.plan_date <= end_date)
 
-    query = query.order_by(FitnessPlan.plan_date)
-    return query.all()
+    query = query.order_by(FitnessPlan.plan_date.desc())
+    return query.offset(offset).limit(limit).all()
 
 @router.get("/{plan_date}", response_model=FitnessPlanResponse)
 async def get_fitness_plan_by_date(

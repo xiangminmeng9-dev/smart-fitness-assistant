@@ -93,7 +93,7 @@ const ProfilePage = () => {
     });
   };
 
-  const ALL_MUSCLE_GROUPS = ['胸', '背', '肩', '腿', '手臂', '腹部', '有氧'];
+  const ALL_MUSCLE_GROUPS = ['胸', '背', '肩', '腿', '手臂', '腹部', '核心', '有氧'];
 
   const handleGetLocation = async () => {
     clearErrors();
@@ -405,10 +405,10 @@ const ProfilePage = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 训练肌群选择 <span className="text-xs text-gray-400">(选择本周期要训练的肌群，系统自动分配每日组合)</span>
               </label>
-              <div className="grid grid-cols-4 md:grid-cols-7 gap-3">
+              <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
                 {ALL_MUSCLE_GROUPS.map(group => {
                   const selected = formData.selected_muscle_groups.includes(group);
-                  const icons: Record<string, string> = { '胸': '🫁', '背': '🔙', '肩': '💪', '腿': '🦵', '手臂': '💪', '腹部': '🎯', '有氧': '🏃' };
+                  const icons: Record<string, string> = { '胸': '🫁', '背': '🔙', '肩': '💪', '腿': '🦵', '手臂': '💪', '腹部': '🎯', '核心': '🧘', '有氧': '🏃' };
                   return (
                     <button
                       key={group}

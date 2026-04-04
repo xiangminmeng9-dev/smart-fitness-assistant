@@ -1,11 +1,18 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from sqlalchemy import text
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.routers import auth, user, plan, system
+from app.routers import auth, user, plan, system, model_config
+
+# 速率限制器
+limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -45,6 +52,21 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# 添加速率限制中间件
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, lambda request, exc: JSONResponse(
+    status_code=429,
+    content={"detail": "请求过于频繁，请稍后再试"}
+))
+
+# 全局异常处理
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "服务器内部错误，请稍后重试"}
+    )
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -68,6 +90,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(user.router, prefix="/api/user", tags=["user"])
 app.include_router(plan.router, prefix="/api/plan", tags=["plan"])
 app.include_router(system.router, prefix="/api/system", tags=["system"])
+app.include_router(model_config.router, prefix="/api/model-config", tags=["model-config"])
 
 if __name__ == "__main__":
     import uvicorn

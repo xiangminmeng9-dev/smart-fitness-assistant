@@ -5,7 +5,8 @@ from datetime import date
 from typing import Dict, Any, List, Optional
 
 from app.core.config import settings
-from app.models.user import UserProfile
+from app.models.user import UserProfile, UserModelConfig
+from app.services.ai_providers import get_ai_provider
 from app.services.schedule_generator import (
     get_today_muscle_groups, get_cycle_progress, calculate_daily_targets,
     get_week_intensity,
@@ -52,11 +53,18 @@ EXERCISE_DB: Dict[str, List[Dict[str, Any]]] = {
         {"name": "集中弯举", "sets": 3, "reps": "12-15", "rest_seconds": 45, "weight_suggestion": "轻重量", "calories_burned": 30, "notes": "顶峰收缩停留2秒"},
     ],
     "腹部": [
-        {"name": "卷腹", "sets": 3, "reps": "15-20", "rest_seconds": 45, "weight_suggestion": "自重", "calories_burned": 35, "notes": "下背贴地，用腹肌发力"},
-        {"name": "平板支撑", "sets": 3, "reps": "30-60秒", "rest_seconds": 45, "weight_suggestion": "自重", "calories_burned": 30, "notes": "身体成一条直线，不要塌腰"},
-        {"name": "俄罗斯转体", "sets": 3, "reps": "20次(左右各10)", "rest_seconds": 45, "weight_suggestion": "轻重量或自重", "calories_burned": 35, "notes": "双脚离地，转动躯干"},
-        {"name": "悬垂举腿", "sets": 3, "reps": "10-15", "rest_seconds": 60, "weight_suggestion": "自重", "calories_burned": 40, "notes": "控制速度，避免摆动"},
-        {"name": "死虫式", "sets": 3, "reps": "12次/侧", "rest_seconds": 45, "weight_suggestion": "自重", "calories_burned": 25, "notes": "下背始终贴地，对侧手脚交替"},
+        {"name": "卷腹", "sets": 3, "reps": "15-20", "rest_seconds": 45, "weight_suggestion": "自重", "calories_burned": 35, "notes": "下背贴地，用腹肌发力", "demo_url": "https://www.bilibili.com/video/BV1Jt411c7AC"},
+        {"name": "平板支撑", "sets": 3, "reps": "30-60秒", "rest_seconds": 45, "weight_suggestion": "自重", "calories_burned": 30, "notes": "身体成一条直线，不要塌腰", "demo_url": "https://www.bilibili.com/video/BV1Jt411c7AC"},
+        {"name": "俄罗斯转体", "sets": 3, "reps": "20次(左右各10)", "rest_seconds": 45, "weight_suggestion": "轻重量或自重", "calories_burned": 35, "notes": "双脚离地，转动躯干", "demo_url": "https://www.bilibili.com/video/BV1Jt411c7AC"},
+        {"name": "悬垂举腿", "sets": 3, "reps": "10-15", "rest_seconds": 60, "weight_suggestion": "自重", "calories_burned": 40, "notes": "控制速度，避免摆动", "demo_url": "https://www.bilibili.com/video/BV1Jt411c7AC"},
+        {"name": "死虫式", "sets": 3, "reps": "12次/侧", "rest_seconds": 45, "weight_suggestion": "自重", "calories_burned": 25, "notes": "下背始终贴地，对侧手脚交替", "demo_url": "https://www.bilibili.com/video/BV1Jt411c7AC"},
+    ],
+    "核心": [
+        {"name": "死虫式", "sets": 3, "reps": "10次/侧", "rest_seconds": 45, "weight_suggestion": "自重", "calories_burned": 30, "notes": "下背贴紧地面，对侧手脚缓慢伸展", "demo_url": "https://www.bilibili.com/video/BV1Jt411c7AC"},
+        {"name": "鸟狗式", "sets": 3, "reps": "10次/侧", "rest_seconds": 45, "weight_suggestion": "自重", "calories_burned": 25, "notes": "保持脊柱中立，手脚同时伸展", "demo_url": "https://www.bilibili.com/video/BV1Jt411c7AC"},
+        {"name": "平板支撑变式", "sets": 3, "reps": "45-60秒", "rest_seconds": 45, "weight_suggestion": "自重", "calories_burned": 35, "notes": "交替抬腿或侧向平板", "demo_url": "https://www.bilibili.com/video/BV1Jt411c7AC"},
+        {"name": "健腹轮", "sets": 3, "reps": "8-12", "rest_seconds": 60, "weight_suggestion": "健腹轮", "calories_burned": 50, "notes": "跪姿开始，控制离心阶段，避免塌腰", "demo_url": "https://www.bilibili.com/video/BV1Jt411c7AC"},
+        {"name": "农夫行走", "sets": 3, "reps": "30米/组", "rest_seconds": 60, "weight_suggestion": "哑铃或壶铃(每侧体重15-25%)", "calories_burned": 60, "notes": "核心收紧，保持直立姿势行走", "demo_url": "https://www.bilibili.com/video/BV1Jt411c7AC"},
     ],
     "有氧": [
         {"name": "跑步机慢跑", "sets": 1, "reps": "25-30分钟", "rest_seconds": 0, "weight_suggestion": "配速6-8km/h", "calories_burned": 250, "notes": "保持心率在最大心率60-70%"},
@@ -242,29 +250,80 @@ def generate_mock_plan(
         ("加餐", "15:30", "snack", 0.10),
     ]
 
+    def _calc_calories(option: dict) -> int:
+        """Calculate calories from macros."""
+        return option.get("protein_g", 0) * 4 + option.get("carbs_g", 0) * 4 + option.get("fat_g", 0) * 9
+
+    def _add_portion_suggestion(option: dict, meal_type: str, option_type: str) -> dict:
+        """Add portion suggestion based on meal type and eating method."""
+        result = {**option}
+
+        # Portion suggestions based on eating method
+        if option_type == "self_cook":
+            # 自己做：可以精确控制份量
+            if meal_type == "breakfast":
+                result["portion_tip"] = "主食约1拳头大小，蛋白质约1掌心大小"
+            elif meal_type == "lunch":
+                result["portion_tip"] = "主食约1.5拳头，肉类约1.5掌心，蔬菜2拳头"
+            elif meal_type == "dinner":
+                result["portion_tip"] = "主食约1拳头，肉类约1掌心，蔬菜1.5拳头"
+            else:  # snack
+                result["portion_tip"] = "控制在小碗或手掌大小"
+        elif option_type == "takeout":
+            # 外卖：通常份量大，建议控制
+            if meal_type == "breakfast":
+                result["portion_tip"] = "建议吃七八分饱，剩余可留作加餐"
+            elif meal_type == "lunch":
+                result["portion_tip"] = "外卖份量通常偏大，建议只吃2/3或与他人分享"
+            elif meal_type == "dinner":
+                result["portion_tip"] = "晚餐外卖建议少点主食，多吃蔬菜"
+            else:
+                result["portion_tip"] = "选择小份装，避免高糖高油选项"
+        else:  # eat_out
+            # 店里吃：注意选择和份量
+            if meal_type == "breakfast":
+                result["portion_tip"] = "避免油炸食品，选择蒸煮类"
+            elif meal_type == "lunch":
+                result["portion_tip"] = "先吃蔬菜再吃肉，最后吃主食，细嚼慢咽"
+            elif meal_type == "dinner":
+                result["portion_tip"] = "晚餐外出就餐建议少点一道菜，避免浪费和过量"
+            else:
+                result["portion_tip"] = "选择新鲜水果或无糖饮品"
+
+        return result
+
     meal_plan = []
     total_intake = 0
     for label, time_str, key, ratio in meal_types:
-        meal_cal = round(daily_cal_target * ratio)
+        base_cal = round(daily_cal_target * ratio)
         t = template[key]
 
-        def _scale(option: dict, target_cal: int) -> dict:
-            base_cal = option.get("protein_g", 20) * 4 + option.get("carbs_g", 30) * 4 + option.get("fat_g", 10) * 9
-            factor = target_cal / base_cal if base_cal > 0 else 1.0
-            scaled = {**option, "calories": target_cal}
-            scaled["protein_g"] = round(option.get("protein_g", 20) * factor)
-            scaled["carbs_g"] = round(option.get("carbs_g", 30) * factor)
-            scaled["fat_g"] = round(option.get("fat_g", 10) * factor)
-            return scaled
+        # Different calories for different eating methods
+        # self_cook: most accurate, closest to target
+        # takeout: usually higher calories due to more oil/sauce
+        # eat_out: variable, estimate slightly higher
+        self_cook_cal = base_cal
+        takeout_cal = round(base_cal * 1.15)  # 外卖通常多15%卡路里
+        eat_out_cal = round(base_cal * 1.10)  # 店里吃多10%
+
+        self_cook = _add_portion_suggestion(t["self_cook"], key, "self_cook")
+        self_cook["calories"] = self_cook_cal
+
+        takeout = _add_portion_suggestion(t["takeout"], key, "takeout")
+        takeout["calories"] = takeout_cal
+
+        eat_out = _add_portion_suggestion(t["eat_out"], key, "eat_out")
+        eat_out["calories"] = eat_out_cal
 
         meal_plan.append({
             "meal_type": label,
             "time": time_str,
-            "self_cook": _scale(t["self_cook"], meal_cal),
-            "takeout": _scale(t["takeout"], meal_cal),
-            "eat_out": _scale(t["eat_out"], meal_cal),
+            "self_cook": self_cook,
+            "takeout": takeout,
+            "eat_out": eat_out,
         })
-        total_intake += meal_cal
+        # Use average of the three for total intake tracking
+        total_intake += (self_cook_cal + takeout_cal + eat_out_cal) // 3
 
     # --- Calorie summary ---
     muscle_str = "、".join(muscle_groups) if muscle_groups else "休息日"
@@ -310,7 +369,8 @@ def generate_mock_plan(
 
 
 async def generate_fitness_plan(
-    profile: UserProfile, plan_date: date, muscle_groups: Optional[List[str]] = None
+    profile: UserProfile, plan_date: date, muscle_groups: Optional[List[str]] = None,
+    model_config: Optional[UserModelConfig] = None
 ) -> Dict[str, Any]:
     """Generate a fitness plan using AI or fall back to mock data."""
     if not muscle_groups:
@@ -358,7 +418,20 @@ async def generate_fitness_plan(
         "weekday": plan_date.weekday(),  # 0=Mon
     }
 
-    if not settings.CLAUDE_API_KEY:
+    # Determine provider details
+    provider_type = model_config.provider_type if model_config else settings.AI_PROVIDER
+    base_url = model_config.base_url if model_config and model_config.base_url else None
+    api_key = model_config.api_key if model_config and model_config.api_key else settings.CLAUDE_API_KEY
+    model_name = model_config.model_name if model_config and model_config.model_name else None
+
+    # Try to resolve defaults if not set
+    if not base_url or not model_name:
+        from app.routers.model_config import PROVIDERS
+        provider_info = next((p for p in PROVIDERS if p.type == provider_type), PROVIDERS[0])
+        base_url = base_url or provider_info.default_base_url
+        model_name = model_name or provider_info.default_model
+
+    if not api_key:
         return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context)
 
     try:
@@ -396,15 +469,17 @@ async def generate_fitness_plan(
 重要要求：
 1. {"今天是休息日，不需要训练计划，workout_groups为空数组" if is_rest_day else f"今日只针对以下肌群生成训练动作：{muscle_str}"}
 2. 每个动作包含 "exercise_completed": false 字段
-3. 热量计算必须包含基础代谢：净热量 = 摄入 - 运动消耗 - 基础代谢
-4. {"周末可以适当安排一顿放纵餐或社交聚餐" if is_weekend else "工作日饮食以便捷高效为主"}
-5. 饮食计划要有变化，不要每天一样！今天是周期第{day_in_cycle + 1}天，请生成与其他天不同的菜品
-6. 根据训练强度({cycle_info.get('intensity', 'medium')})调整训练量和饮食
+3. 每个动作必须包含 "demo_url" 字段，提供B站或YouTube的动作教学视频链接
+4. 热量计算必须包含基础代谢：净热量 = 摄入 - 运动消耗 - 基础代谢
+5. {"周末可以适当安排一顿放纵餐或社交聚餐" if is_weekend else "工作日饮食以便捷高效为主"}
+6. 饮食计划要有变化，不要每天一样！今天是周期第{day_in_cycle + 1}天，请生成与其他天不同的菜品
+7. 根据训练强度({cycle_info.get('intensity', 'medium')})调整训练量和饮食
 
-饮食要求（每餐提供三种方案）：
-1. 自己做：列出食材和简要做法
-2. 点外卖：推荐平台和店铺
-3. 店里吃：推荐餐厅类型
+饮食要求（每餐提供三种方案，卡路里必须不同）：
+1. 自己做：卡路里最准确可控，列出食材和简要做法
+2. 点外卖：通常油盐较多，卡路里比自己做高约15%
+3. 店里吃：卡路里介于两者之间，比自己做高约10%
+4. 每种方案必须包含 "portion_tip" 字段，给出具体的份量建议（如"主食约1拳头大小"）
 
 请以JSON格式返回，严格符合以下结构：
 {{
@@ -426,6 +501,7 @@ async def generate_fitness_plan(
           "weight_suggestion": "重量建议",
           "calories_burned": 80,
           "notes": "动作要点",
+          "demo_url": "https://www.bilibili.com/video/xxx",
           "exercise_completed": false
         }}
       ]
@@ -436,9 +512,35 @@ async def generate_fitness_plan(
     {{
       "meal_type": "早餐/午餐/晚餐/加餐",
       "time": "建议时间",
-      "self_cook": {{"name": "菜名", "calories": 450, "protein_g": 30, "carbs_g": 40, "fat_g": 15, "ingredients": ["食材"], "recipe_brief": "做法"}},
-      "takeout": {{"name": "菜名", "calories": 420, "protein_g": 28, "carbs_g": 45, "fat_g": 12, "platform": "平台", "store_suggestion": "店铺"}},
-      "eat_out": {{"name": "菜名", "calories": 400, "protein_g": 25, "carbs_g": 42, "fat_g": 14, "restaurant_type": "餐厅类型"}}
+      "self_cook": {{
+        "name": "菜名",
+        "calories": 450,
+        "protein_g": 30,
+        "carbs_g": 40,
+        "fat_g": 15,
+        "ingredients": ["食材"],
+        "recipe_brief": "做法",
+        "portion_tip": "主食约1拳头大小，蛋白质约1掌心大小"
+      }},
+      "takeout": {{
+        "name": "菜名",
+        "calories": 520,
+        "protein_g": 28,
+        "carbs_g": 50,
+        "fat_g": 18,
+        "platform": "平台",
+        "store_suggestion": "店铺",
+        "portion_tip": "外卖份量通常偏大，建议只吃2/3"
+      }},
+      "eat_out": {{
+        "name": "菜名",
+        "calories": 495,
+        "protein_g": 26,
+        "carbs_g": 48,
+        "fat_g": 16,
+        "restaurant_type": "餐厅类型",
+        "portion_tip": "先吃蔬菜再吃肉，最后吃主食"
+      }}
     }}
   ],
   "calorie_summary": {{
@@ -450,28 +552,14 @@ async def generate_fitness_plan(
   "recommendations": ["建议1", "建议2"]
 }}"""
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{settings.CLAUDE_BASE_URL}/v1/messages",
-                headers={
-                    "x-api-key": settings.CLAUDE_API_KEY,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                },
-                json={
-                    "model": settings.CLAUDE_MODEL,
-                    "max_tokens": 8000,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-                timeout=60.0,
-            )
-            response.raise_for_status()
-            result = response.json()
-            content = result.get("content", [{}])[0].get("text", "{}")
-            try:
-                return json.loads(content)
-            except json.JSONDecodeError:
-                return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context)
+        provider = get_ai_provider(provider_type, base_url, api_key)
+        response_text = await provider.generate(prompt, model_name, max_tokens=8000)
+        
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError:
+            print(f"Error parsing AI response JSON. Raw response: {response_text[:200]}")
+            return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context)
     except Exception as e:
-        print(f"Error calling Claude API: {e}")
+        print(f"Error calling AI Provider API: {e}")
         return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context)

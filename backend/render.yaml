@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: smart-fitness-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DB_TYPE
+        value: sqlite
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CLAUDE_API_KEY
+        sync: false
+      - key: CLAUDE_BASE_URL
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-opus-4-6
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

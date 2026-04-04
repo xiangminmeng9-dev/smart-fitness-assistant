@@ -16,6 +16,21 @@ class User(Base):
     # Relationships
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     fitness_plans = relationship("FitnessPlan", back_populates="user", cascade="all, delete-orphan")
+    model_config = relationship("UserModelConfig", back_populates="user", uselist=False, cascade="all, delete-orphan")
+
+class UserModelConfig(Base):
+    __tablename__ = "user_model_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    provider_type = Column(String(20), default="claude")
+    base_url = Column(String(500), nullable=True)
+    api_key = Column(String(500), nullable=True)
+    model_name = Column(String(100), nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", back_populates="model_config")
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
@@ -44,10 +59,10 @@ class FitnessPlan(Base):
     __tablename__ = "fitness_plans"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    plan_date = Column(Date, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    plan_date = Column(Date, nullable=False, index=True)  # 添加索引
     plan_data = Column(JSON, nullable=False)
-    completed = Column(Boolean, default=False)
+    completed = Column(Boolean, default=False, index=True)  # 添加索引用于筛选
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 

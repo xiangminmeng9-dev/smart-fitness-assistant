@@ -12,6 +12,7 @@ interface PlanStore {
   selectedDate: string;
   isLoading: boolean;
   isGenerating: boolean;
+  isWeatherLoading: boolean;
   error: string | null;
 
   fetchTodayPlan: (date: string) => Promise<void>;
@@ -30,10 +31,11 @@ const usePlanStore = create<PlanStore>((set, get) => ({
   selectedDate: today,
   isLoading: false,
   isGenerating: false,
+  isWeatherLoading: false,
   error: null,
 
   setSelectedDate: (date: string) => {
-    set({ selectedDate: date });
+    set({ selectedDate: date, weather: null }); // Clear weather when date changes
     get().fetchTodayPlan(date);
   },
 
@@ -84,8 +86,18 @@ const usePlanStore = create<PlanStore>((set, get) => ({
 
   toggleExerciseComplete: async (planId: number, groupIndex: number, exerciseIndex: number, completed: boolean) => {
     try {
-      const updatedPlan = await planApi.toggleExerciseComplete(planId, groupIndex, exerciseIndex, completed);
-      set({ todayPlan: updatedPlan });
+      const result = await planApi.toggleExerciseComplete(planId, groupIndex, exerciseIndex, completed);
+      // 更新本地状态
+      const currentPlan = get().todayPlan;
+      if (currentPlan && currentPlan.id === planId) {
+        set({
+          todayPlan: {
+            ...currentPlan,
+            plan_data: result.plan_data,
+            completed: result.completed
+          }
+        });
+      }
     } catch (error: any) {
       const msg = error.response?.data?.detail || '更新动作状态失败';
       toast.error(msg);
@@ -93,10 +105,12 @@ const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   fetchWeather: async (lat?: number, lng?: number, targetDate?: string) => {
+    set({ isWeatherLoading: true });
     try {
       const weather = await planApi.getWeather(lat, lng, targetDate);
-      set({ weather });
+      set({ weather, isWeatherLoading: false });
     } catch {
+      set({ isWeatherLoading: false });
       // silent fail for weather
     }
   },

@@ -44,3 +44,15 @@ CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_user_profiles_user_id ON user_profiles(user_id);
 CREATE INDEX idx_fitness_plans_user_id ON fitness_plans(user_id);
 CREATE INDEX idx_fitness_plans_plan_date ON fitness_plans(plan_date);
+-- Added for multi-model support
+CREATE TABLE IF NOT EXISTS user_model_configs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    provider_type VARCHAR(20) DEFAULT 'claude',
+    base_url VARCHAR(500),
+    api_key VARCHAR(500),
+    model_name VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
