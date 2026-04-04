@@ -16,14 +16,19 @@ limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: create database tables
-    print("Creating database tables...")
-    Base.metadata.create_all(bind=engine)
-    # Migrate: add new columns if they don't exist (SQLite doesn't support IF NOT EXISTS for columns)
-    _migrate_db()
     yield
-    # Shutdown
-    print("Shutting down...")
+
+# Add a lazy DB init middleware
+@app.middleware("http")
+async def db_init_middleware(request: Request, call_next):
+    if not hasattr(app.state, "db_initialized"):
+        try:
+            Base.metadata.create_all(bind=engine)
+            _migrate_db()
+            app.state.db_initialized = True
+        except Exception as e:
+            print(f"DB Init error: {e}")
+    return await call_next(request)
 
 
 def _migrate_db():
@@ -60,11 +65,18 @@ app.add_exception_handler(RateLimitExceeded, lambda request, exc: JSONResponse(
 ))
 
 # 全局异常处理
+import traceback
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    error_details = traceback.format_exc()
+    print(error_details)
     return JSONResponse(
         status_code=500,
-        content={"detail": "服务器内部错误，请稍后重试"}
+        content={
+            "detail": "服务器内部错误，请稍后重试",
+            "debug": str(exc),
+            "traceback": error_details
+        }
     )
 
 # CORS middleware
