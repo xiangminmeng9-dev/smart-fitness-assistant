@@ -219,7 +219,7 @@ const SettingsPage = () => {
             
             <div className="flex-grow"></div>
             
-            {config && config.id > 0 && (
+            {config && config.id !== undefined && config.id > 0 && (
               <button
                 onClick={handleReset}
                 className="inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"

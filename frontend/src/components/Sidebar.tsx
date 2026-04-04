@@ -1,5 +1,4 @@
-import {
-  Cog6ToothIcon, NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   Cog6ToothIcon,
   HomeIcon,
