@@ -7,7 +7,7 @@ import os
 # Add backend directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
-from app.main import app
+from app.main import app as fastapi_app
 
 # Create a wrapper that strips the /api prefix before passing to FastAPI
 async def handler(scope, receive, send):
@@ -19,7 +19,7 @@ async def handler(scope, receive, send):
             if not new_path:
                 new_path = "/"
             scope["path"] = new_path
-    return await app(scope, receive, send)
+    return await fastapi_app(scope, receive, send)
 
-# Use the wrapper as the ASGI application
+# Export the ASGI application for Vercel
 app = handler
