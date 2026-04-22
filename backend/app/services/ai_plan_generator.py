@@ -9,7 +9,7 @@ from app.models.user import UserProfile, UserModelConfig
 from app.services.ai_providers import get_ai_provider
 from app.services.schedule_generator import (
     get_today_muscle_groups, get_cycle_progress, calculate_daily_targets,
-    get_week_intensity,
+    get_week_intensity, calculate_weight_change_feasibility,
 )
 
 
@@ -76,79 +76,236 @@ EXERCISE_DB: Dict[str, List[Dict[str, Any]]] = {
 }
 
 # ---------------------------------------------------------------------------
-# Meal templates with variety
+# Dynamic meal generation based on context
 # ---------------------------------------------------------------------------
-MEAL_TEMPLATES = [
-    # Template 0
-    {
-        "breakfast": {
-            "self_cook": {"name": "鸡蛋燕麦粥+水果", "protein_g": 22, "carbs_g": 45, "fat_g": 10, "ingredients": ["燕麦50g", "鸡蛋2个", "牛奶200ml", "蓝莓50g"], "recipe_brief": "燕麦加牛奶煮3分钟，煎蛋，配蓝莓"},
-            "takeout": {"name": "全麦三明治+美式咖啡", "protein_g": 20, "carbs_g": 40, "fat_g": 12, "platform": "美团/饿了么", "store_suggestion": "Manner/瑞幸"},
-            "eat_out": {"name": "皮蛋瘦肉粥+茶叶蛋", "protein_g": 18, "carbs_g": 42, "fat_g": 8, "restaurant_type": "早餐店/粥铺"},
-        },
-        "lunch": {
-            "self_cook": {"name": "鸡胸肉糙米饭+西兰花", "protein_g": 40, "carbs_g": 55, "fat_g": 8, "ingredients": ["鸡胸肉150g", "糙米100g", "西兰花150g", "橄榄油5ml"], "recipe_brief": "鸡胸肉煎熟切片，糙米蒸熟，西兰花焯水"},
-            "takeout": {"name": "沙拉鸡胸肉饭", "protein_g": 35, "carbs_g": 60, "fat_g": 12, "platform": "美团/饿了么", "store_suggestion": "沙野轻食/超级碗"},
-            "eat_out": {"name": "黄焖鸡米饭(少油)", "protein_g": 30, "carbs_g": 65, "fat_g": 15, "restaurant_type": "快餐店"},
-        },
-        "dinner": {
-            "self_cook": {"name": "清蒸鱼+蔬菜沙拉", "protein_g": 35, "carbs_g": 20, "fat_g": 10, "ingredients": ["鲈鱼200g", "生菜100g", "番茄100g", "黄瓜100g"], "recipe_brief": "鲈鱼清蒸8分钟，蔬菜切好拌橄榄油醋汁"},
-            "takeout": {"name": "日式三文鱼定食", "protein_g": 32, "carbs_g": 45, "fat_g": 14, "platform": "美团/饿了么", "store_suggestion": "吉野家/食其家"},
-            "eat_out": {"name": "清蒸鱼套餐", "protein_g": 30, "carbs_g": 40, "fat_g": 12, "restaurant_type": "粤菜馆/蒸菜馆"},
-        },
-        "snack": {
-            "self_cook": {"name": "希腊酸奶+坚果", "protein_g": 15, "carbs_g": 12, "fat_g": 8, "ingredients": ["希腊酸奶150g", "混合坚果15g"], "recipe_brief": "酸奶倒入碗中，撒上坚果即可"},
-            "takeout": {"name": "蛋白棒+无糖豆浆", "protein_g": 20, "carbs_g": 15, "fat_g": 6, "platform": "便利店", "store_suggestion": "全家/711"},
-            "eat_out": {"name": "鲜榨果汁+全麦面包", "protein_g": 8, "carbs_g": 30, "fat_g": 4, "restaurant_type": "果汁店/面包房"},
-        },
-    },
-    # Template 1
-    {
-        "breakfast": {
-            "self_cook": {"name": "全麦吐司+牛油果+水煮蛋", "protein_g": 20, "carbs_g": 35, "fat_g": 16, "ingredients": ["全麦吐司2片", "牛油果半个", "鸡蛋2个"], "recipe_brief": "吐司烤3分钟，牛油果切片铺上，配水煮蛋"},
-            "takeout": {"name": "杂粮煎饼+豆浆", "protein_g": 15, "carbs_g": 48, "fat_g": 10, "platform": "美团/饿了么", "store_suggestion": "附近早餐店"},
-            "eat_out": {"name": "小笼包+豆腐脑", "protein_g": 18, "carbs_g": 40, "fat_g": 12, "restaurant_type": "早餐店/包子铺"},
-        },
-        "lunch": {
-            "self_cook": {"name": "牛肉炒芹菜+紫米饭", "protein_g": 38, "carbs_g": 50, "fat_g": 12, "ingredients": ["牛肉150g", "芹菜200g", "紫米100g", "姜蒜适量"], "recipe_brief": "牛肉切片腌制，大火快炒芹菜和牛肉，紫米提前蒸好"},
-            "takeout": {"name": "牛肉饭+蔬菜", "protein_g": 32, "carbs_g": 58, "fat_g": 14, "platform": "美团/饿了么", "store_suggestion": "吉野家/食其家"},
-            "eat_out": {"name": "兰州拉面(牛肉面)", "protein_g": 28, "carbs_g": 65, "fat_g": 10, "restaurant_type": "面馆"},
-        },
-        "dinner": {
-            "self_cook": {"name": "虾仁豆腐煲+凉拌黄瓜", "protein_g": 35, "carbs_g": 15, "fat_g": 10, "ingredients": ["虾仁150g", "豆腐200g", "黄瓜150g", "蒜末适量"], "recipe_brief": "虾仁焯水，豆腐切块煮汤，黄瓜拍碎拌蒜"},
-            "takeout": {"name": "麻辣烫(多菜少粉)", "protein_g": 25, "carbs_g": 35, "fat_g": 15, "platform": "美团/饿了么", "store_suggestion": "杨国福/张亮"},
-            "eat_out": {"name": "蒸汽海鲜", "protein_g": 35, "carbs_g": 20, "fat_g": 8, "restaurant_type": "海鲜餐厅"},
-        },
-        "snack": {
-            "self_cook": {"name": "香蕉蛋白奶昔", "protein_g": 25, "carbs_g": 28, "fat_g": 4, "ingredients": ["香蕉1根", "蛋白粉1勺", "牛奶200ml"], "recipe_brief": "所有材料放入搅拌机打匀"},
-            "takeout": {"name": "低脂酸奶+水果杯", "protein_g": 10, "carbs_g": 25, "fat_g": 3, "platform": "便利店", "store_suggestion": "全家/罗森"},
-            "eat_out": {"name": "鲜果茶(少糖)+蛋白棒", "protein_g": 18, "carbs_g": 20, "fat_g": 5, "restaurant_type": "茶饮店"},
-        },
-    },
-    # Template 2
-    {
-        "breakfast": {
-            "self_cook": {"name": "蔬菜鸡蛋饼+牛奶", "protein_g": 22, "carbs_g": 30, "fat_g": 12, "ingredients": ["鸡蛋2个", "面粉30g", "胡萝卜丝", "菠菜", "牛奶250ml"], "recipe_brief": "蛋液混合面粉和蔬菜丝，平底锅煎至两面金黄"},
-            "takeout": {"name": "肉夹馍+八宝粥", "protein_g": 18, "carbs_g": 50, "fat_g": 14, "platform": "美团/饿了么", "store_suggestion": "西少爷/袁记"},
-            "eat_out": {"name": "生煎包+豆浆", "protein_g": 16, "carbs_g": 45, "fat_g": 15, "restaurant_type": "早餐店/生煎铺"},
-        },
-        "lunch": {
-            "self_cook": {"name": "三文鱼藜麦沙拉", "protein_g": 38, "carbs_g": 40, "fat_g": 18, "ingredients": ["三文鱼150g", "藜麦80g", "混合生菜", "牛油果半个", "柠檬汁"], "recipe_brief": "三文鱼煎至五分熟，藜麦煮熟放凉，混合蔬菜拌匀"},
-            "takeout": {"name": "鸡肉卷+玉米浓汤", "protein_g": 28, "carbs_g": 55, "fat_g": 16, "platform": "美团/饿了么", "store_suggestion": "赛百味/肯德基"},
-            "eat_out": {"name": "日式定食(烤鱼套餐)", "protein_g": 32, "carbs_g": 50, "fat_g": 12, "restaurant_type": "日料店"},
-        },
-        "dinner": {
-            "self_cook": {"name": "番茄牛腩+荞麦面", "protein_g": 35, "carbs_g": 48, "fat_g": 12, "ingredients": ["牛腩200g", "番茄2个", "荞麦面100g", "洋葱半个"], "recipe_brief": "牛腩炖番茄40分钟，荞麦面煮熟浇汁"},
-            "takeout": {"name": "冒菜(多肉多菜)", "protein_g": 28, "carbs_g": 30, "fat_g": 18, "platform": "美团/饿了么", "store_suggestion": "三顾冒菜"},
-            "eat_out": {"name": "潮汕牛肉火锅(清汤)", "protein_g": 40, "carbs_g": 25, "fat_g": 15, "restaurant_type": "火锅店"},
-        },
-        "snack": {
-            "self_cook": {"name": "红薯+水煮蛋", "protein_g": 12, "carbs_g": 35, "fat_g": 5, "ingredients": ["红薯1个(200g)", "鸡蛋1个"], "recipe_brief": "红薯蒸15分钟，鸡蛋水煮8分钟"},
-            "takeout": {"name": "全麦面包+美式咖啡", "protein_g": 8, "carbs_g": 30, "fat_g": 4, "platform": "便利店/咖啡店", "store_suggestion": "星巴克/瑞幸"},
-            "eat_out": {"name": "水果沙拉+酸奶", "protein_g": 10, "carbs_g": 28, "fat_g": 6, "restaurant_type": "轻食店"},
-        },
-    },
-]
+
+def generate_dynamic_meal_plan(
+    targets: dict,
+    is_training_day: bool,
+    intensity: str,
+    day_in_cycle: int,
+    fitness_goal: str,
+    weather_info: Optional[dict] = None,
+) -> List[dict]:
+    """
+    根据训练状态、天气、周期进度动态生成饮食计划。
+    不再使用固定模板，而是根据实际情况组合。
+    """
+    daily_cal = targets["daily_calorie_target"]
+    protein_target = targets["protein_g"]
+    is_rest_day = not is_training_day
+
+    # 根据天气调整建议
+    weather_factor = 1.0
+    weather_note = ""
+    if weather_info:
+        temp = weather_info.get("temperature", 20)
+        condition = weather_info.get("condition", "晴")
+        if temp > 30:
+            weather_factor = 1.1  # 热天需要更多水分和电解质
+            weather_note = "天气炎热，注意补充水分和电解质，可增加水果摄入"
+        elif temp < 10:
+            weather_factor = 1.05  # 冷天需要略多热量
+            weather_note = "天气寒冷，可适当增加温热食物，注意保暖"
+        elif "雨" in condition:
+            weather_note = "雨天户外运动受限，可选择室内训练或调整饮食"
+
+    # 训练日/休息日热量分配不同
+    if is_training_day:
+        # 训练日：早餐和训练后餐更重要
+        meal_ratios = [0.25, 0.35, 0.30, 0.10]  # 早、午、晚、加餐
+        carb_ratio = 0.45  # 训练日碳水更高
+    else:
+        # 休息日：晚餐可以略少
+        meal_ratios = [0.28, 0.35, 0.27, 0.10]
+        carb_ratio = 0.35  # 休息日碳水略低
+
+    # 根据周期进度调整
+    if intensity == "heavy":
+        protein_boost = 1.1  # 大强度周增加蛋白质
+    elif intensity == "deload":
+        protein_boost = 0.95  # 减负周略减
+    else:
+        protein_boost = 1.0
+
+    # ---------------------------------------------------------------------------
+    # 餐饮场景专属菜品数据库
+    # ---------------------------------------------------------------------------
+
+    SELF_COOK_DISHES = {
+        "早餐": [
+            ("燕麦蛋白碗", "鸡蛋", "燕麦", ["蓝莓", "香蕉"], 13, 66, 11),
+            ("鸡胸全麦三明治", "鸡胸肉", "全麦面包", ["生菜", "番茄"], 31, 41, 3.6),
+            ("蛋白蔬菜煎饼", "鸡蛋", "红薯", ["菠菜", "胡萝卜"], 13, 20, 11),
+            ("希腊酸奶坚果碗", "希腊酸奶", "燕麦", ["草莓", "蓝莓"], 10, 66, 0.7),
+            ("糙米鸡胸粥", "鸡胸肉", "糙米饭", ["芹菜", "番茄"], 31, 23, 3.6),
+            ("牛油果鸡蛋吐司", "鸡蛋", "全麦面包", ["牛油果", "番茄"], 13, 41, 11),
+        ],
+        "午餐": [
+            ("鸡胸糙米套餐", "鸡胸肉", "糙米饭", ["西兰花", "胡萝卜"], 31, 23, 3.6),
+            ("清蒸鱼配藜麦", "鱼肉", "藜麦", ["菠菜", "番茄"], 20, 21, 5),
+            ("虾仁炒蛋白", "虾仁", "糙米饭", ["西兰花", "黄瓜"], 24, 23, 0.6),
+            ("卤牛肉配红薯", "牛肉", "红薯", ["生菜", "胡萝卜"], 26, 20, 15),
+            ("豆腐蔬菜配紫薯", "豆腐", "紫薯", ["菠菜", "芹菜"], 8, 17, 4.8),
+            ("鸡胸藜麦沙拉", "鸡胸肉", "藜麦", ["生菜", "黄瓜", "番茄"], 31, 21, 3.6),
+        ],
+        "晚餐": [
+            ("三文鱼配糙米", "三文鱼", "糙米饭", ["西兰花", "菠菜"], 25, 23, 13),
+            ("鸡胸肉配红薯", "鸡胸肉", "红薯", ["生菜", "番茄"], 31, 20, 3.6),
+            ("瘦猪肉炒蔬菜", "瘦猪肉", "糙米饭", ["芹菜", "胡萝卜"], 21, 23, 9),
+            ("虾仁藜麦轻食", "虾仁", "藜麦", ["黄瓜", "生菜"], 24, 21, 0.6),
+            ("鸡蛋蔬菜配玉米", "鸡蛋", "玉米", ["菠菜", "番茄"], 13, 19, 11),
+            ("豆腐菌菇配糙米", "豆腐", "糙米饭", ["西兰花", "胡萝卜"], 8, 23, 4.8),
+        ],
+        "加餐": [
+            ("蛋白燕麦杯", "希腊酸奶", "燕麦", ["蓝莓"], 10, 66, 0.7),
+            ("鸡胸肉干配全麦面包", "鸡胸肉", "全麦面包", [], 31, 41, 3.6),
+            ("鸡蛋配玉米", "鸡蛋", "玉米", [], 13, 19, 11),
+            ("蛋白奶昔配香蕉", "希腊酸奶", "燕麦", ["香蕉"], 10, 66, 0.7),
+        ],
+    }
+
+    TAKEOUT_DISHES = {
+        "早餐": [
+            ("轻食蛋白碗", "沙野轻食"),
+            ("健康早餐便当", "超级碗"),
+            ("全麦三明治套餐", "Wagas"),
+            ("豆浆鸡蛋灌饼", "附近早餐店"),
+            ("燕麦酸奶杯", "喜茶/奈雪"),
+        ],
+        "午餐": [
+            ("轻食鸡胸碗", "沙野轻食"),
+            ("糙米健身便当", "超级碗"),
+            ("低脂三文鱼沙拉", "Wagas"),
+            ("黑椒牛肉盖饭", "食其家"),
+            ("虾仁轻食碗", "沙野轻食"),
+            ("照烧鸡胸饭", "吉野家"),
+        ],
+        "晚餐": [
+            ("鸡胸轻食沙拉", "沙野轻食"),
+            ("日式定食", "食其家"),
+            ("三文鱼poke bowl", "超级碗"),
+            ("少油牛肉饭", "吉野家"),
+            ("麻辣烫(清汤少油)", "张亮麻辣烫"),
+        ],
+        "加餐": [
+            ("蛋白棒+美式", "便利蜂/全家"),
+            ("希腊酸奶杯", "喜茶/奈雪"),
+            ("坚果能量球", "O!Super"),
+        ],
+    }
+
+    EAT_OUT_DISHES = {
+        "早餐": [
+            ("广式早茶套餐", "粤式茶楼"),
+            ("酒店自助早餐", "酒店餐厅"),
+            ("咖啡全日早午餐", "咖啡馆"),
+        ],
+        "午餐": [
+            ("铁板黑椒牛柳饭", "茶餐厅"),
+            ("清蒸鲈鱼套餐", "粤菜馆"),
+            ("日式烤鸡定食", "日料店"),
+            ("牛排轻食套餐", "西餐厅"),
+            ("酸菜鱼配米饭", "川菜馆"),
+        ],
+        "晚餐": [
+            ("白切鸡套餐", "粤菜馆"),
+            ("烤三文鱼配蔬菜", "西餐厅"),
+            ("水煮牛肉(少油)", "川菜馆"),
+            ("寿司刺身拼盘", "日料店"),
+            ("蒜蓉蒸虾配时蔬", "海鲜餐厅"),
+        ],
+        "加餐": [
+            ("水果捞", "甜品店"),
+            ("鲜榨蔬果汁", "果汁吧"),
+        ],
+    }
+
+    # 使用日期作为随机种子，确保同一天生成相同但每天不同
+    seed = day_in_cycle * 31 + (1 if is_training_day else 0) * 100 + (1 if fitness_goal == "增肌" else 0) * 200
+    rng = random.Random(seed)
+
+    meal_types = [
+        ("早餐", "07:30", meal_ratios[0]),
+        ("午餐", "12:00", meal_ratios[1]),
+        ("晚餐", "18:30", meal_ratios[2]),
+        ("加餐", "15:30", meal_ratios[3]),
+    ]
+
+    meal_plan = []
+    total_cal = 0
+
+    for meal_name, meal_time, ratio in meal_types:
+        meal_cal = round(daily_cal * ratio)
+        meal_protein = round(protein_target * ratio * protein_boost)
+
+        # --- 自己做：从家庭烹饪菜品库选择 ---
+        sc_pool = SELF_COOK_DISHES.get(meal_name, SELF_COOK_DISHES["午餐"])
+        sc_dish = rng.choice(sc_pool)
+        sc_name, sc_protein, sc_carb, sc_vegs, sc_p_g, sc_c_g, sc_f_g = sc_dish
+
+        protein_portion = round(meal_protein / sc_p_g * 100) if sc_p_g > 0 else 100
+        carb_portion = round(meal_cal * 0.3 / 4)
+
+        self_cook_cal = meal_cal
+        self_cook = {
+            "name": sc_name,
+            "calories": self_cook_cal,
+            "protein_g": meal_protein,
+            "carbs_g": round(self_cook_cal * carb_ratio / 4),
+            "fat_g": round(self_cook_cal * 0.25 / 9),
+            "ingredients": [
+                f"{sc_protein} {protein_portion}g",
+                f"{sc_carb} {carb_portion}g",
+            ] + [f"{v} 100g" for v in sc_vegs],
+            "recipe_brief": f"{sc_protein}煎/煮至熟，配{sc_carb}和{'、'.join(sc_vegs) if sc_vegs else '蔬菜'}",
+            "portion_tip": f"蛋白质约{protein_portion}g，主食约{carb_portion}g生重",
+        }
+
+        # --- 点外卖：从外卖菜品库选择 ---
+        to_pool = TAKEOUT_DISHES.get(meal_name, TAKEOUT_DISHES["午餐"])
+        to_dish = rng.choice(to_pool)
+        to_name, to_store = to_dish
+
+        takeout_cal = round(meal_cal * 1.15)
+        takeout = {
+            "name": to_name,
+            "calories": takeout_cal,
+            "protein_g": round(meal_protein * 0.9),
+            "carbs_g": round(takeout_cal * carb_ratio / 4),
+            "fat_g": round(takeout_cal * 0.3 / 9),
+            "platform": "美团/饿了么",
+            "store_suggestion": to_store,
+            "portion_tip": "外卖份量通常偏大，建议只吃2/3或与他人分享",
+        }
+
+        # --- 店里吃：从餐厅菜品库选择 ---
+        eo_pool = EAT_OUT_DISHES.get(meal_name, EAT_OUT_DISHES["午餐"])
+        eo_dish = rng.choice(eo_pool)
+        eo_name, eo_rest_type = eo_dish
+
+        eat_out_cal = round(meal_cal * 1.1)
+        eat_out = {
+            "name": eo_name,
+            "calories": eat_out_cal,
+            "protein_g": round(meal_protein * 0.95),
+            "carbs_g": round(eat_out_cal * carb_ratio / 4),
+            "fat_g": round(eat_out_cal * 0.28 / 9),
+            "restaurant_type": eo_rest_type,
+            "portion_tip": "先吃蔬菜再吃肉，最后吃主食",
+        }
+
+        meal_plan.append({
+            "meal_type": meal_name,
+            "time": meal_time,
+            "self_cook": self_cook,
+            "takeout": takeout,
+            "eat_out": eat_out,
+        })
+        total_cal += (self_cook_cal + takeout_cal + eat_out_cal) // 3
+
+    return meal_plan, total_cal, weather_note
+
 
 WARMUP_OPTIONS = [
     ["开合跳 30秒", "手臂环绕 各方向10次", "高抬腿 30秒", "动态拉伸 2分钟"],
@@ -187,12 +344,14 @@ def generate_mock_plan(
     muscle_groups: List[str],
     is_rest_day: bool,
     context: Dict[str, Any],
+    weather_info: Optional[dict] = None,
 ) -> Dict[str, Any]:
     """Generate a deterministic mock fitness plan when AI is unavailable."""
     targets = context["targets"]
     day_in_cycle = context.get("day_in_cycle", 0)
     cycle_info = context.get("cycle_info", {})
     intensity = cycle_info.get("intensity", "medium")
+    feasibility = targets.get("feasibility", {})
 
     # Seed random for deterministic but varied output per date
     seed = int(plan_date.toordinal()) + (profile.id if profile.id else 0)
@@ -238,114 +397,52 @@ def generate_mock_plan(
                 })
             workout_groups.append({"muscle_group": mg, "exercises": exercises})
 
-    # --- Meal plan ---
-    template_idx = day_in_cycle % len(MEAL_TEMPLATES)
-    template = MEAL_TEMPLATES[template_idx]
-    daily_cal_target = targets.get("daily_calorie_target", 2000)
-
-    meal_types = [
-        ("早餐", "07:30", "breakfast", 0.25),
-        ("午餐", "12:00", "lunch", 0.35),
-        ("晚餐", "18:30", "dinner", 0.30),
-        ("加餐", "15:30", "snack", 0.10),
-    ]
-
-    def _calc_calories(option: dict) -> int:
-        """Calculate calories from macros."""
-        return option.get("protein_g", 0) * 4 + option.get("carbs_g", 0) * 4 + option.get("fat_g", 0) * 9
-
-    def _add_portion_suggestion(option: dict, meal_type: str, option_type: str) -> dict:
-        """Add portion suggestion based on meal type and eating method."""
-        result = {**option}
-
-        # Portion suggestions based on eating method
-        if option_type == "self_cook":
-            # 自己做：可以精确控制份量
-            if meal_type == "breakfast":
-                result["portion_tip"] = "主食约1拳头大小，蛋白质约1掌心大小"
-            elif meal_type == "lunch":
-                result["portion_tip"] = "主食约1.5拳头，肉类约1.5掌心，蔬菜2拳头"
-            elif meal_type == "dinner":
-                result["portion_tip"] = "主食约1拳头，肉类约1掌心，蔬菜1.5拳头"
-            else:  # snack
-                result["portion_tip"] = "控制在小碗或手掌大小"
-        elif option_type == "takeout":
-            # 外卖：通常份量大，建议控制
-            if meal_type == "breakfast":
-                result["portion_tip"] = "建议吃七八分饱，剩余可留作加餐"
-            elif meal_type == "lunch":
-                result["portion_tip"] = "外卖份量通常偏大，建议只吃2/3或与他人分享"
-            elif meal_type == "dinner":
-                result["portion_tip"] = "晚餐外卖建议少点主食，多吃蔬菜"
-            else:
-                result["portion_tip"] = "选择小份装，避免高糖高油选项"
-        else:  # eat_out
-            # 店里吃：注意选择和份量
-            if meal_type == "breakfast":
-                result["portion_tip"] = "避免油炸食品，选择蒸煮类"
-            elif meal_type == "lunch":
-                result["portion_tip"] = "先吃蔬菜再吃肉，最后吃主食，细嚼慢咽"
-            elif meal_type == "dinner":
-                result["portion_tip"] = "晚餐外出就餐建议少点一道菜，避免浪费和过量"
-            else:
-                result["portion_tip"] = "选择新鲜水果或无糖饮品"
-
-        return result
-
-    meal_plan = []
-    total_intake = 0
-    for label, time_str, key, ratio in meal_types:
-        base_cal = round(daily_cal_target * ratio)
-        t = template[key]
-
-        # Different calories for different eating methods
-        # self_cook: most accurate, closest to target
-        # takeout: usually higher calories due to more oil/sauce
-        # eat_out: variable, estimate slightly higher
-        self_cook_cal = base_cal
-        takeout_cal = round(base_cal * 1.15)  # 外卖通常多15%卡路里
-        eat_out_cal = round(base_cal * 1.10)  # 店里吃多10%
-
-        self_cook = _add_portion_suggestion(t["self_cook"], key, "self_cook")
-        self_cook["calories"] = self_cook_cal
-
-        takeout = _add_portion_suggestion(t["takeout"], key, "takeout")
-        takeout["calories"] = takeout_cal
-
-        eat_out = _add_portion_suggestion(t["eat_out"], key, "eat_out")
-        eat_out["calories"] = eat_out_cal
-
-        meal_plan.append({
-            "meal_type": label,
-            "time": time_str,
-            "self_cook": self_cook,
-            "takeout": takeout,
-            "eat_out": eat_out,
-        })
-        # Use average of the three for total intake tracking
-        total_intake += (self_cook_cal + takeout_cal + eat_out_cal) // 3
+    # --- Dynamic meal plan ---
+    meal_plan, total_intake, weather_note = generate_dynamic_meal_plan(
+        targets=targets,
+        is_training_day=not is_rest_day,
+        intensity=intensity,
+        day_in_cycle=day_in_cycle,
+        fitness_goal=profile.fitness_goal or "减脂",
+        weather_info=weather_info,
+    )
 
     # --- Calorie summary ---
     muscle_str = "、".join(muscle_groups) if muscle_groups else "休息日"
     calorie_summary = {
         "bmr": targets["bmr"],
+        "tdee": targets["tdee"],
         "exercise_burned": total_exercise_calories,
         "total_intake": total_intake,
         "net_calories": total_intake - total_exercise_calories - targets["bmr"],
+        "daily_target": targets["daily_calorie_target"],
     }
 
-    # --- Recommendations ---
+    # --- Recommendations based on feasibility ---
     goal = profile.fitness_goal or "减脂"
-    recs = [
-        f"今日训练强度为{intensity}，请合理控制重量和组数。",
-        f"每日蛋白质目标{targets['protein_g']}g，注意均匀分配到每餐。",
-    ]
+    recs = []
+
+    # 添加目标可行性分析
+    if feasibility:
+        if feasibility.get("feasibility") == "unrealistic":
+            recs.append(f"⚠️ 目标提醒：{feasibility.get('health_note', '')}")
+            recs.append(f"建议周期：{feasibility.get('suggested_cycle_days', 28)}天，或调整目标体重")
+        elif feasibility.get("feasibility") == "challenging":
+            recs.append(f"💪 目标较激进：{feasibility.get('health_note', '')}")
+
+    recs.append(f"今日训练强度为{intensity}，请合理控制重量和组数。")
+    recs.append(f"每日蛋白质目标{targets['protein_g']}g，注意均匀分配到每餐。")
+
     if goal == "减脂":
-        recs.append("保持热量缺口，但不要低于基础代谢率。")
+        recs.append(f"每日热量缺口约{abs(targets.get('daily_adjustment', 0))}kcal，坚持即可达成目标。")
         recs.append("训练后30分钟内补充蛋白质有助于恢复。")
     else:
-        recs.append("增肌期保持热量盈余，碳水是训练的燃料。")
+        recs.append(f"每日热量盈余约{abs(targets.get('daily_adjustment', 0))}kcal，配合训练促进肌肉生长。")
         recs.append("训练后补充蛋白质和碳水，促进肌肉合成。")
+
+    if weather_note:
+        recs.append(f"🌤️ {weather_note}")
+
     if is_rest_day:
         recs = [
             "休息日注意补充水分，建议饮水2-3升。",
@@ -353,9 +450,17 @@ def generate_mock_plan(
             "保证充足睡眠(7-9小时)，这是恢复的关键。",
         ]
 
+    # --- Progress tracking ---
+    progress_info = {
+        "current_day": cycle_info.get("current_day", 1),
+        "total_days": cycle_info.get("total_days", 28),
+        "progress_pct": cycle_info.get("progress_pct", 0),
+        "predicted_weight_change": feasibility.get("weekly_change_needed", 0) * (cycle_info.get("current_week", 1) if feasibility.get("feasibility") != "unrealistic" else 0),
+    }
+
     return {
         "motivation_quote": quote,
-        "weather_impact": "请根据实际天气调整训练安排",
+        "weather_impact": weather_note or "请根据实际天气调整训练安排",
         "training_split": f"今日训练: {muscle_str}" if not is_rest_day else "今日休息",
         "split_day": muscle_str,
         "is_rest_day": is_rest_day,
@@ -365,12 +470,15 @@ def generate_mock_plan(
         "meal_plan": meal_plan,
         "calorie_summary": calorie_summary,
         "recommendations": recs,
+        "progress_info": progress_info,
+        "feasibility": feasibility,
     }
 
 
 async def generate_fitness_plan(
     profile: UserProfile, plan_date: date, muscle_groups: Optional[List[str]] = None,
-    model_config: Optional[UserModelConfig] = None
+    model_config: Optional[UserModelConfig] = None,
+    weather_info: Optional[dict] = None,
 ) -> Dict[str, Any]:
     """Generate a fitness plan using AI or fall back to mock data."""
     if not muscle_groups:
@@ -399,8 +507,10 @@ async def generate_fitness_plan(
     frequency = profile.fitness_frequency or 3
     goal = profile.fitness_goal or "减脂"
 
+    # Calculate targets with training day awareness
     targets = calculate_daily_targets(
-        weight, height, age, gender, target_weight, cycle_days, frequency, goal
+        weight, height, age, gender, target_weight, cycle_days, frequency, goal,
+        is_training_day=not is_rest_day
     )
 
     # Day in cycle for meal variety
@@ -432,13 +542,16 @@ async def generate_fitness_plan(
         model_name = model_name or provider_info.default_model
 
     if not api_key:
-        return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context)
+        return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
 
     try:
         muscle_str = "、".join(muscle_groups) if muscle_groups else "休息日"
         weekday_names = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
         weekday_name = weekday_names[plan_date.weekday()]
         is_weekend = plan_date.weekday() >= 5
+
+        # Get feasibility info for AI prompt
+        feasibility = targets.get("feasibility", {})
 
         prompt = f"""你是一位拥有10年经验的专业健身教练和营养师。请为以下用户生成专业的个性化健身计划。
 
@@ -457,6 +570,12 @@ async def generate_fitness_plan(
 - 每日目标摄入：{targets['daily_calorie_target']} 千卡
 - 蛋白质目标：{targets['protein_g']}g | 脂肪：{targets['fat_g']}g | 碳水：{targets['carbs_g']}g
 
+目标可行性分析：
+- 每周需变化：{feasibility.get('weekly_change_needed', 0)} kg
+- 可行性评估：{feasibility.get('feasibility', 'unknown')}
+- 健康建议：{feasibility.get('health_note', '')}
+- 预计可达体重：{feasibility.get('predicted_weight', target_weight)} kg
+
 训练周期：
 - 进度：第{cycle_info['current_day']}天 / 共{cycle_info['total_days']}天
 - 本周强度：{cycle_info.get('intensity', 'medium')}
@@ -464,7 +583,6 @@ async def generate_fitness_plan(
 - 周期第{day_in_cycle + 1}天
 
 今日安排：{"休息日 - 不安排训练，只需饮食计划" if is_rest_day else f"训练肌群：{muscle_str}"}
-- 位置坐标：{float(profile.location_lat) if profile.location_lat else None}, {float(profile.location_lng) if profile.location_lng else None}
 
 重要要求：
 1. {"今天是休息日，不需要训练计划，workout_groups为空数组" if is_rest_day else f"今日只针对以下肌群生成训练动作：{muscle_str}"}
@@ -474,12 +592,15 @@ async def generate_fitness_plan(
 5. {"周末可以适当安排一顿放纵餐或社交聚餐" if is_weekend else "工作日饮食以便捷高效为主"}
 6. 饮食计划要有变化，不要每天一样！今天是周期第{day_in_cycle + 1}天，请生成与其他天不同的菜品
 7. 根据训练强度({cycle_info.get('intensity', 'medium')})调整训练量和饮食
+8. 根据目标可行性分析给出个性化建议
 
-饮食要求（每餐提供三种方案，卡路里必须不同）：
-1. 自己做：卡路里最准确可控，列出食材和简要做法
-2. 点外卖：通常油盐较多，卡路里比自己做高约15%
-3. 店里吃：卡路里介于两者之间，比自己做高约10%
-4. 每种方案必须包含 "portion_tip" 字段，给出具体的份量建议（如"主食约1拳头大小"）
+饮食要求（每餐提供三种方案，菜品必须不同，卡路里必须不同）：
+1. 自己做：选择适合家庭烹饪的菜品，列出食材和简要做法。例如"鸡胸糙米套餐"、"燕麦蛋白碗"
+2. 点外卖：选择可外卖配送的菜品，使用真实外卖菜品名。例如"轻食鸡胸碗"(沙野轻食)、"黑椒牛肉盖饭"(食其家)
+3. 店里吃：选择餐厅菜品，使用真实餐厅菜品名。例如"清蒸鲈鱼套餐"(粤菜馆)、"寿司刺身拼盘"(日料店)
+4. 三种方案的菜品名称必须完全不同，不能仅改前缀或后缀
+5. 外卖卡路里比自己做高约15%，店里吃比自己做高约10%
+6. 每种方案必须包含 "portion_tip" 字段，给出具体的份量建议（如"主食约1拳头大小"）
 
 请以JSON格式返回，严格符合以下结构：
 {{
@@ -545,21 +666,34 @@ async def generate_fitness_plan(
   ],
   "calorie_summary": {{
     "bmr": {targets['bmr']},
+    "tdee": {targets['tdee']},
     "exercise_burned": 总运动消耗,
     "total_intake": 总摄入,
-    "net_calories": 净热量(摄入-运动-BMR)
+    "net_calories": 净热量(摄入-运动-BMR),
+    "daily_target": {targets['daily_calorie_target']}
   }},
-  "recommendations": ["建议1", "建议2"]
+  "recommendations": ["建议1", "建议2"],
+  "progress_info": {{
+    "current_day": {cycle_info['current_day']},
+    "total_days": {cycle_info['total_days']},
+    "progress_pct": {cycle_info['progress_pct']},
+    "predicted_weight_change": 预计体重变化
+  }},
+  "feasibility": {{
+    "feasibility": "{feasibility.get('feasibility', 'unknown')}",
+    "health_note": "{feasibility.get('health_note', '')}",
+    "predicted_weight": {feasibility.get('predicted_weight', target_weight)}
+  }}
 }}"""
 
         provider = get_ai_provider(provider_type, base_url, api_key)
         response_text = await provider.generate(prompt, model_name, max_tokens=8000)
-        
+
         try:
             return json.loads(response_text)
         except json.JSONDecodeError:
             print(f"Error parsing AI response JSON. Raw response: {response_text[:200]}")
-            return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context)
+            return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
     except Exception as e:
         print(f"Error calling AI Provider API: {e}")
-        return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context)
+        return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
