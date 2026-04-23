@@ -24,4 +24,4 @@ httpx>=0.25.0
 slowapi>=0.1.9
 
 # CORS middleware is included in fastapi
-psycopg2-binary>=2.9.9
+pg8000>=1.30.0
