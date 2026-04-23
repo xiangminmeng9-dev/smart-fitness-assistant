@@ -1,5 +1,4 @@
 {
-  "buildCommand": "ln -sf ../backend/app api/app && cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.py": {
