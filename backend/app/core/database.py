@@ -7,12 +7,14 @@ from app.core.config import settings
 
 # Create database engine based on DB_TYPE
 if os.environ.get("POSTGRES_URL"):
-    # Vercel Postgres injected URL
+    # Vercel Postgres (Neon) - use pooler URL with serverless-friendly settings
     SQLALCHEMY_DATABASE_URL = os.environ.get("POSTGRES_URL").replace("postgres://", "postgresql://")
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
         pool_pre_ping=True,
         pool_recycle=3600,
+        pool_size=0,
+        max_overflow=0,
         echo=settings.APP_ENV == "development"
     )
 elif settings.DB_TYPE == "sqlite":
