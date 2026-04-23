@@ -9,16 +9,20 @@ from app.core.config import settings
 if os.environ.get("POSTGRES_URL"):
     # Vercel Postgres (Neon) - use pg8000 driver for serverless compatibility
     raw_url = os.environ.get("POSTGRES_URL")
-    # Replace postgres:// with postgresql+pg8000://
+    # Replace scheme for pg8000 driver
     SQLALCHEMY_DATABASE_URL = raw_url.replace("postgres://", "postgresql+pg8000://").replace("postgresql://", "postgresql+pg8000://")
-    # Remove duplicate if already postgresql+pg8000
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql+pg8000+pg8000://", "postgresql+pg8000://")
+    # Strip all query params (pg8000 doesn't support sslmode/channel_binding as query params)
+    from urllib.parse import urlparse, urlunparse
+    parsed = urlparse(SQLALCHEMY_DATABASE_URL)
+    SQLALCHEMY_DATABASE_URL = urlunparse(parsed._replace(query=""))
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
         pool_pre_ping=True,
         pool_recycle=3600,
         pool_size=0,
         max_overflow=0,
+        connect_args={"ssl_context": True},
         echo=settings.APP_ENV == "development"
     )
 elif settings.DB_TYPE == "sqlite":
