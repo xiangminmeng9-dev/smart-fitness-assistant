@@ -5,9 +5,13 @@ Routes all /api/* requests to the FastAPI application.
 import os
 import sys
 
-# Add project root and backend to Python path
-_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _p in [_root, os.path.join(_root, 'backend')]:
+# Calculate paths relative to this file's location
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+_project_root = os.path.dirname(_this_dir)
+_backend = os.path.join(_project_root, "backend")
+
+# Add both project root and backend to sys.path
+for _p in [_project_root, _backend]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 

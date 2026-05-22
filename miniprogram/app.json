@@ -1,0 +1,51 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/calendar/index",
+    "pages/tips/index",
+    "pages/user/index",
+    "pages/login/index",
+    "pages/profile/index",
+    "pages/settings/index",
+    "pages/plan-detail/index"
+  ],
+  "window": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#1A1A2E",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#6C6C80",
+    "selectedColor": "#2ECC71",
+    "backgroundColor": "#1A1A2E",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "assets/icons/tab-home.png",
+        "selectedIconPath": "assets/icons/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/calendar/index",
+        "text": "日历",
+        "iconPath": "assets/icons/tab-calendar.png",
+        "selectedIconPath": "assets/icons/tab-calendar-active.png"
+      },
+      {
+        "pagePath": "pages/tips/index",
+        "text": "发现",
+        "iconPath": "assets/icons/tab-tips.png",
+        "selectedIconPath": "assets/icons/tab-tips-active.png"
+      },
+      {
+        "pagePath": "pages/user/index",
+        "text": "我的",
+        "iconPath": "assets/icons/tab-user.png",
+        "selectedIconPath": "assets/icons/tab-user-active.png"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

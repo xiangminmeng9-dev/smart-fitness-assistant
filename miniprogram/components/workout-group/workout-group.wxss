@@ -1,0 +1,110 @@
+.workout-group {
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  margin-bottom: var(--spacing-md);
+  box-shadow: var(--shadow-card);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.group-icon {
+  font-size: 36rpx;
+  margin-right: var(--spacing-sm);
+}
+
+.group-name {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.exercise-item {
+  display: flex;
+  align-items: flex-start;
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--card-radius-sm);
+  padding: var(--spacing-md);
+  border-left: 4rpx solid transparent;
+  transition: all 0.2s;
+}
+
+.exercise-completed {
+  border-left-color: var(--color-accent-green);
+  opacity: 0.7;
+}
+
+.exercise-check {
+  margin-right: var(--spacing-md);
+  padding-top: 4rpx;
+}
+
+.check-circle {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  border: 3rpx solid var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  color: #FFFFFF;
+}
+
+.check-done {
+  background-color: var(--color-accent-green);
+  border-color: var(--color-accent-green);
+}
+
+.exercise-info {
+  flex: 1;
+}
+
+.exercise-name {
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 4rpx;
+  display: block;
+}
+
+.text-line-through {
+  text-decoration: line-through;
+  color: var(--color-text-secondary);
+}
+
+.exercise-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-bottom: 4rpx;
+}
+
+.meta-tag {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.meta-cal {
+  color: var(--color-accent-orange);
+}
+
+.exercise-notes {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-tertiary);
+  display: block;
+  margin-top: 4rpx;
+}

@@ -18,6 +18,13 @@ limiter = Limiter(key_func=get_remote_address)
 async def lifespan(app: FastAPI):
     yield
 
+app = FastAPI(
+    title="Smart Fitness Assistant API",
+    description="AI-powered personalized fitness plan generator",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
 # Add a lazy DB init middleware
 @app.middleware("http")
 async def db_init_middleware(request: Request, call_next):
@@ -40,6 +47,7 @@ def _migrate_db():
         ("user_profiles", "training_cycle_days", "INTEGER DEFAULT 28"),
         ("user_profiles", "cycle_start_date", "DATE"),
         ("user_profiles", "selected_muscle_groups", "JSON"),
+        ("users", "wechat_openid", "VARCHAR(128)"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -50,12 +58,12 @@ def _migrate_db():
             except Exception:
                 pass  # Column already exists
 
-app = FastAPI(
-    title="Smart Fitness Assistant API",
-    description="AI-powered personalized fitness plan generator",
-    version="1.0.0",
-    lifespan=lifespan
-)
+        # Create unique index for wechat_openid
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_wechat_openid ON users (wechat_openid)"))
+            conn.commit()
+        except Exception:
+            pass  # Index already exists
 
 # 添加速率限制中间件
 app.state.limiter = limiter

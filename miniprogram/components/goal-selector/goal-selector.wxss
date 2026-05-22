@@ -1,0 +1,43 @@
+.goal-selector {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.goal-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-lg) var(--spacing-md);
+  background-color: var(--color-bg-tertiary);
+  border: 2rpx solid var(--color-border);
+  border-radius: var(--card-radius);
+  transition: all 0.2s;
+}
+
+.goal-active {
+  border-color: var(--color-accent-green);
+  background-color: rgba(46, 204, 113, 0.1);
+}
+
+.goal-icon {
+  font-size: 48rpx;
+  margin-bottom: var(--spacing-sm);
+}
+
+.goal-label {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 4rpx;
+}
+
+.goal-desc {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-tertiary);
+}
+
+.goal-active .goal-label {
+  color: var(--color-accent-green);
+}

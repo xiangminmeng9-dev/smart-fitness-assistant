@@ -1,0 +1,43 @@
+<view style="background-color:#1A1A2E; min-height:100vh; padding:32rpx; padding-bottom:200rpx;">
+  <!-- 每日贴士 -->
+  <view style="background:linear-gradient(135deg,#9B59B6,#8E44AD); border-radius:24rpx; padding:32rpx; margin-bottom:32rpx;">
+    <text style="font-size:36rpx; display:block; margin-bottom:8rpx;">🌟</text>
+    <text style="font-size:20rpx; color:rgba(255,255,255,0.7); display:block; margin-bottom:8rpx;">今日贴士</text>
+    <text style="font-size:34rpx; font-weight:600; color:#FFFFFF; line-height:1.4; display:block; margin-bottom:16rpx;">"{{dailyTip}}"</text>
+    <view bindtap="onRefreshTip"><text style="font-size:24rpx; color:rgba(255,255,255,0.8);">换一条 →</text></view>
+  </view>
+
+  <!-- 分类 -->
+  <view style="font-size:34rpx; font-weight:600; color:#FFFFFF; margin-bottom:24rpx;">分类浏览</view>
+  <view style="display:grid; grid-template-columns:1fr 1fr; gap:16rpx; margin-bottom:32rpx;">
+    <view style="background-color:#16213E; border-radius:24rpx; padding:32rpx;">
+      <text style="font-size:40rpx; display:block; margin-bottom:12rpx;">🏋️</text>
+      <text style="font-size:28rpx; font-weight:600; color:#FFFFFF; display:block; margin-bottom:4rpx;">训练技巧</text>
+      <text style="font-size:20rpx; color:#6C6C80; display:block;">掌握正确姿势，提升训练效果</text>
+    </view>
+    <view style="background-color:#16213E; border-radius:24rpx; padding:32rpx;">
+      <text style="font-size:40rpx; display:block; margin-bottom:12rpx;">🥗</text>
+      <text style="font-size:28rpx; font-weight:600; color:#FFFFFF; display:block; margin-bottom:4rpx;">饮食营养</text>
+      <text style="font-size:20rpx; color:#6C6C80; display:block;">科学搭配，吃出好身材</text>
+    </view>
+    <view style="background-color:#16213E; border-radius:24rpx; padding:32rpx;">
+      <text style="font-size:40rpx; display:block; margin-bottom:12rpx;">😴</text>
+      <text style="font-size:28rpx; font-weight:600; color:#FFFFFF; display:block; margin-bottom:4rpx;">休息恢复</text>
+      <text style="font-size:20rpx; color:#6C6C80; display:block;">充分休息，让肌肉更好生长</text>
+    </view>
+    <view style="background-color:#16213E; border-radius:24rpx; padding:32rpx;">
+      <text style="font-size:40rpx; display:block; margin-bottom:12rpx;">🧠</text>
+      <text style="font-size:28rpx; font-weight:600; color:#FFFFFF; display:block; margin-bottom:4rpx;">心理建设</text>
+      <text style="font-size:20rpx; color:#6C6C80; display:block;">坚持就是胜利</text>
+    </view>
+  </view>
+
+  <!-- 贴士列表 -->
+  <view wx:if="{{tips.length}}">
+    <view style="font-size:34rpx; font-weight:600; color:#FFFFFF; margin-bottom:24rpx;">贴士列表</view>
+    <view wx:for="{{tips}}" wx:key="id" style="background-color:#16213E; border-radius:24rpx; padding:32rpx; margin-bottom:16rpx;">
+      <text style="font-size:28rpx; font-weight:500; color:#FFFFFF; display:block; margin-bottom:8rpx;">{{item.title}}</text>
+      <text style="font-size:24rpx; color:#A0A0B8; line-height:1.5; display:block;">{{item.content}}</text>
+    </view>
+  </view>
+</view>

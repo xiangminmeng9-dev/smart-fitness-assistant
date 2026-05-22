@@ -1,0 +1,61 @@
+<view style="background-color:#1A1A2E; min-height:100vh; padding:32rpx; padding-bottom:200rpx;">
+  <view wx:if="{{!loggedIn}}" style="display:flex; flex-direction:column; align-items:center; padding-top:30vh;">
+    <text style="font-size:80rpx; margin-bottom:24rpx;">📅</text>
+    <text style="font-size:34rpx; font-weight:600; color:#FFFFFF;">请先登录</text>
+  </view>
+
+  <view wx:if="{{loggedIn}}">
+    <!-- 统计 -->
+    <view style="display:flex; gap:16rpx; margin-bottom:32rpx;">
+      <view style="flex:1; background-color:#16213E; border-radius:16rpx; padding:24rpx; text-align:center;">
+        <text style="display:block; font-size:40rpx; font-weight:700; color:#FFFFFF;">{{stats.total}}</text>
+        <text style="font-size:20rpx; color:#6C6C80;">总计划</text>
+      </view>
+      <view style="flex:1; background-color:#16213E; border-radius:16rpx; padding:24rpx; text-align:center;">
+        <text style="display:block; font-size:40rpx; font-weight:700; color:#FFFFFF;">{{stats.completed}}</text>
+        <text style="font-size:20rpx; color:#6C6C80;">已完成</text>
+      </view>
+      <view style="flex:1; background-color:#16213E; border-radius:16rpx; padding:24rpx; text-align:center;">
+        <text style="display:block; font-size:40rpx; font-weight:700; color:#2ECC71;">{{stats.rate}}</text>
+        <text style="font-size:20rpx; color:#6C6C80;">完成率</text>
+      </view>
+    </view>
+
+    <!-- 月份导航 -->
+    <view style="display:flex; align-items:center; justify-content:center; gap:48rpx; margin-bottom:32rpx;">
+      <view style="width:56rpx; height:56rpx; display:flex; align-items:center; justify-content:center; background-color:#16213E; border-radius:50%;" bindtap="onPrevMonth">
+        <text style="font-size:36rpx; color:#A0A0B8;">‹</text>
+      </view>
+      <text style="font-size:34rpx; font-weight:600; color:#FFFFFF;">{{year}}年{{month}}月</text>
+      <view style="width:56rpx; height:56rpx; display:flex; align-items:center; justify-content:center; background-color:#16213E; border-radius:50%;" bindtap="onNextMonth">
+        <text style="font-size:36rpx; color:#A0A0B8;">›</text>
+      </view>
+    </view>
+
+    <!-- 日历 -->
+    <view style="background-color:#16213E; border-radius:24rpx; padding:32rpx; margin-bottom:32rpx;">
+      <view style="display:flex; margin-bottom:12rpx;">
+        <text wx:for="{{weekdays}}" wx:key="*this" style="flex:1; text-align:center; font-size:20rpx; color:#6C6C80;">{{item}}</text>
+      </view>
+      <view wx:for="{{weeks}}" wx:key="index" wx:for-item="week" style="display:flex;">
+        <view wx:for="{{week}}" wx:key="day"
+              style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12rpx 0; min-height:80rpx; {{day.isToday ? 'background-color:rgba(46,204,113,0.1); border-radius:12rpx;' : ''}}">
+          <text wx:if="{{day.day}}" style="font-size:24rpx; color:{{day.isToday ? '#2ECC71' : '#A0A0B8'}}; {{day.isToday ? 'font-weight:700;' : ''}}">{{day.day}}</text>
+          <view wx:if="{{day.status === 'completed'}}" style="width:10rpx; height:10rpx; border-radius:50%; background-color:#2ECC71; margin-top:4rpx;"></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 图例 -->
+    <view style="display:flex; gap:48rpx; justify-content:center;">
+      <view style="display:flex; align-items:center; gap:8rpx;">
+        <view style="width:14rpx; height:14rpx; border-radius:50%; background-color:#2ECC71;"></view>
+        <text style="font-size:20rpx; color:#6C6C80;">已完成</text>
+      </view>
+      <view style="display:flex; align-items:center; gap:8rpx;">
+        <view style="width:14rpx; height:14rpx; border-radius:50%; background-color:rgba(46,204,113,0.3);"></view>
+        <text style="font-size:20rpx; color:#6C6C80;">今天</text>
+      </view>
+    </view>
+  </view>
+</view>

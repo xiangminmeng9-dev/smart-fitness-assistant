@@ -1,0 +1,37 @@
+<view class="meal-card" wx:if="{{mealData}}">
+  <view class="meal-header" bindtap="onToggleExpand">
+    <view class="meal-title-row">
+      <text class="meal-icon">🍽️</text>
+      <text class="meal-name">{{mealLabel}}</text>
+      <text class="meal-time">{{mealTime}}</text>
+    </view>
+    <view class="meal-cal-row">
+      <text class="meal-cal">{{mealData[activeTab].calories}}千卡</text>
+      <text class="expand-icon">{{expanded ? '▲' : '▼'}}</text>
+    </view>
+  </view>
+
+  <view class="meal-body" wx:if="{{expanded}}">
+    <view class="tab-selector">
+      <view
+        class="tab-item {{activeTab === item.key ? 'tab-active' : ''}}"
+        wx:for="{{tabs}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="onTabChange"
+      >
+        <text>{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="meal-detail">
+      <text class="meal-dish-name">{{mealData[activeTab].name}}</text>
+      <view class="meal-macros">
+        <text class="macro-tag macro-cal">{{mealData[activeTab].calories}}千卡</text>
+        <text class="macro-tag macro-protein">蛋白{{mealData[activeTab].protein}}g</text>
+        <text class="macro-tag macro-carbs">碳水{{mealData[activeTab].carbs}}g</text>
+      </view>
+      <text class="meal-desc">📝 {{mealData[activeTab].description}}</text>
+    </view>
+  </view>
+</view>

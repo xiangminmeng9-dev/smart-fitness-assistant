@@ -1,0 +1,10 @@
+<view class="cycle-progress">
+  <view class="cycle-info">
+    <text class="cycle-day">第{{currentDay}}天/{{totalDays}}天</text>
+    <text class="cycle-intensity">{{intensityLabel}}</text>
+  </view>
+  <view class="progress-bar">
+    <view class="progress-fill" style="width: {{progress}}%;"></view>
+  </view>
+  <text class="progress-pct">{{progress}}%</text>
+</view>

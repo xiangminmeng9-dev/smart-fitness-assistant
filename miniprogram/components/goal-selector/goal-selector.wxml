@@ -1,0 +1,13 @@
+<view class="goal-selector">
+  <view
+    class="goal-item {{selected === item.value ? 'goal-active' : ''}}"
+    wx:for="{{goals}}"
+    wx:key="value"
+    data-value="{{item.value}}"
+    bindtap="onSelect"
+  >
+    <text class="goal-icon">{{item.icon}}</text>
+    <text class="goal-label">{{item.label}}</text>
+    <text class="goal-desc">{{item.desc}}</text>
+  </view>
+</view>

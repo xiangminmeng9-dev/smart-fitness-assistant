@@ -1,0 +1,28 @@
+.motivation-banner {
+  background: var(--gradient-motivation);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  margin-bottom: var(--spacing-md);
+  box-shadow: var(--shadow-card);
+}
+
+.motivation-icon {
+  font-size: 40rpx;
+  display: block;
+  margin-bottom: var(--spacing-sm);
+}
+
+.motivation-quote {
+  display: block;
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  color: #FFFFFF;
+  line-height: 1.4;
+  margin-bottom: var(--spacing-xs);
+}
+
+.motivation-subtitle {
+  display: block;
+  font-size: var(--font-size-caption);
+  color: rgba(255, 255, 255, 0.7);
+}

@@ -1,0 +1,28 @@
+.weather-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--card-radius-sm);
+}
+
+.weather-icon {
+  font-size: 24rpx;
+}
+
+.weather-city {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.weather-temp {
+  font-size: var(--font-size-caption);
+  color: var(--color-accent-blue);
+  font-weight: 500;
+}
+
+.weather-desc {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-tertiary);
+}

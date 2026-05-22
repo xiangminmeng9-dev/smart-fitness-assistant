@@ -10,7 +10,7 @@ from app.core.security import get_current_user
 from app.models.user import User, FitnessPlan, UserProfile, UserModelConfig
 from app.schemas.plan import FitnessPlanCreate, FitnessPlanResponse, FitnessPlanGenerate
 from app.services.ai_plan_generator import generate_fitness_plan
-from app.services.schedule_generator import get_today_muscle_groups
+from app.services.schedule_generator import get_today_muscle_groups, calculate_weight_change_feasibility
 
 router = APIRouter()
 
@@ -36,6 +36,40 @@ async def get_fitness_plans(
     query = query.order_by(FitnessPlan.plan_date.desc())
     return query.offset(offset).limit(limit).all()
 
+
+@router.get("/feasibility")
+async def get_goal_feasibility(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    获取用户目标的可行性分析
+    """
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=400, detail="User profile required")
+
+    weight = float(profile.weight) if profile.weight else 70
+    target_weight = float(profile.target_weight) if profile.target_weight else weight
+    cycle_days = profile.training_cycle_days or 28
+    goal = profile.fitness_goal or "减脂"
+
+    feasibility = calculate_weight_change_feasibility(
+        current_weight=weight,
+        target_weight=target_weight,
+        cycle_days=cycle_days,
+        fitness_goal=goal
+    )
+
+    return {
+        "current_weight": weight,
+        "target_weight": target_weight,
+        "cycle_days": cycle_days,
+        "fitness_goal": goal,
+        **feasibility
+    }
+
+
 @router.get("/{plan_date}", response_model=FitnessPlanResponse)
 async def get_fitness_plan_by_date(
     plan_date: date,
@@ -53,6 +87,7 @@ async def get_fitness_plan_by_date(
     if not plan:
         raise HTTPException(status_code=404, detail="Fitness plan not found for this date")
     return plan
+
 
 @router.post("/generate", response_model=FitnessPlanResponse)
 async def generate_new_fitness_plan(
@@ -89,8 +124,27 @@ async def generate_new_fitness_plan(
         plan_date=plan_data.plan_date,
     )
 
+    # Get weather info if available
+    weather_info = None
+    if profile.location_lat and profile.location_lng:
+        try:
+            from app.routers.system import get_weather_data
+            weather_info = await get_weather_data(
+                lat=float(profile.location_lat),
+                lng=float(profile.location_lng)
+            )
+        except Exception:
+            pass  # Weather is optional
+
+    # Get user's model config
+    model_config = db.query(UserModelConfig).filter(
+        UserModelConfig.user_id == current_user.id
+    ).first()
+
     # Generate plan using AI
-    plan_content = await generate_fitness_plan(profile, plan_data.plan_date, muscle_groups)
+    plan_content = await generate_fitness_plan(
+        profile, plan_data.plan_date, muscle_groups, model_config, weather_info
+    )
 
     # Create new plan
     new_plan = FitnessPlan(
@@ -103,6 +157,7 @@ async def generate_new_fitness_plan(
     db.commit()
     db.refresh(new_plan)
     return new_plan
+
 
 @router.put("/{plan_id}/complete")
 async def mark_plan_completed(
@@ -125,6 +180,7 @@ async def mark_plan_completed(
     plan.completed = completed
     db.commit()
     return {"message": "Plan updated successfully", "completed": completed}
+
 
 @router.put("/{plan_id}/exercise-complete", response_model=FitnessPlanResponse)
 async def toggle_exercise_complete(

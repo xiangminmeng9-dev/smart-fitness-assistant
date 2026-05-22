@@ -1,0 +1,44 @@
+.cycle-progress {
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--card-radius);
+  padding: var(--spacing-md) var(--card-padding);
+  margin-bottom: var(--spacing-md);
+  box-shadow: var(--shadow-card);
+}
+
+.cycle-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+}
+
+.cycle-day {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.cycle-intensity {
+  font-size: var(--font-size-caption);
+  color: var(--color-accent-orange);
+  font-weight: 500;
+}
+
+.progress-bar {
+  height: 12rpx;
+  background-color: var(--color-bg-tertiary);
+  border-radius: 6rpx;
+  overflow: hidden;
+  margin-bottom: var(--spacing-xs);
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--gradient-primary);
+  border-radius: 6rpx;
+  transition: width 0.3s ease;
+}
+
+.progress-pct {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-tertiary);
+}

@@ -1,0 +1,11 @@
+<view class="muscle-selector">
+  <view
+    class="muscle-item {{selected.indexOf(item) > -1 ? 'muscle-active' : ''}}"
+    wx:for="{{muscles}}"
+    wx:key="*this"
+    data-name="{{item}}"
+    bindtap="onToggle"
+  >
+    <text>{{item}}</text>
+  </view>
+</view>

@@ -1,0 +1,31 @@
+.skeleton-card {
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+}
+
+.skeleton-line {
+  border-radius: 8rpx;
+  background-color: var(--color-bg-tertiary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.skeleton-line-lg {
+  height: 40rpx;
+  width: 60%;
+}
+
+.skeleton-line-md {
+  height: 28rpx;
+  width: 100%;
+}
+
+.shimmer {
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}

@@ -1,0 +1,60 @@
+<view style="background-color:#1A1A2E; min-height:100vh; padding:32rpx; padding-bottom:200rpx;">
+  <!-- 未登录 -->
+  <view wx:if="{{!loggedIn}}" style="display:flex; flex-direction:column; align-items:center; padding-top:30vh;">
+    <text style="font-size:96rpx; margin-bottom:24rpx;">👤</text>
+    <text style="font-size:48rpx; font-weight:700; color:#FFFFFF; margin-bottom:12rpx;">未登录</text>
+    <text style="font-size:24rpx; color:#A0A0B8; margin-bottom:48rpx;">登录后查看个人信息</text>
+    <view style="display:flex; align-items:center; justify-content:center; height:88rpx; background:linear-gradient(135deg,#2ECC71,#27AE60); color:#FFFFFF; font-size:34rpx; font-weight:600; border-radius:44rpx; padding:0 80rpx;" bindtap="onGoLogin">立即登录</view>
+  </view>
+
+  <!-- 已登录 -->
+  <view wx:if="{{loggedIn}}">
+    <!-- 用户信息 -->
+    <view style="display:flex; align-items:center; gap:32rpx; background-color:#16213E; border-radius:24rpx; padding:32rpx; margin-bottom:24rpx;">
+      <view style="width:96rpx; height:96rpx; border-radius:50%; background:linear-gradient(135deg,#2ECC71,#27AE60); display:flex; align-items:center; justify-content:center;">
+        <text style="font-size:40rpx; font-weight:700; color:#FFFFFF;">{{profile ? profile.username[0] : 'U'}}</text>
+      </view>
+      <view style="flex:1;">
+        <text style="font-size:34rpx; font-weight:600; color:#FFFFFF; display:block; margin-bottom:4rpx;">{{profile ? profile.username : '用户'}}</text>
+        <text wx:if="{{profile}}" style="font-size:24rpx; color:#A0A0B8;">{{profile.fitness_goal}}目标 · 每周{{profile.fitness_frequency}}练</text>
+        <text wx:if="{{!profile}}" style="font-size:24rpx; color:#A0A0B8;">还没有填写个人资料</text>
+      </view>
+    </view>
+
+    <!-- 统计 -->
+    <view style="display:flex; gap:16rpx; margin-bottom:24rpx;">
+      <view style="flex:1; background-color:#16213E; border-radius:16rpx; padding:24rpx; text-align:center;">
+        <text style="display:block; font-size:40rpx; font-weight:700; color:#FFFFFF;">{{stats.total}}</text>
+        <text style="font-size:20rpx; color:#6C6C80;">总计划</text>
+      </view>
+      <view style="flex:1; background-color:#16213E; border-radius:16rpx; padding:24rpx; text-align:center;">
+        <text style="display:block; font-size:40rpx; font-weight:700; color:#FFFFFF;">{{stats.completed}}</text>
+        <text style="font-size:20rpx; color:#6C6C80;">已完成</text>
+      </view>
+      <view style="flex:1; background-color:#16213E; border-radius:16rpx; padding:24rpx; text-align:center;">
+        <text style="display:block; font-size:40rpx; font-weight:700; color:#2ECC71;">{{stats.rate}}</text>
+        <text style="font-size:20rpx; color:#6C6C80;">完成率</text>
+      </view>
+    </view>
+
+    <!-- 菜单 -->
+    <view style="background-color:#16213E; border-radius:24rpx;">
+      <view style="display:flex; align-items:center; padding:32rpx;" bindtap="onEditProfile">
+        <text style="font-size:32rpx; margin-right:24rpx;">📋</text>
+        <text style="flex:1; font-size:28rpx; color:#FFFFFF;">编辑资料</text>
+        <text style="font-size:24rpx; color:#6C6C80;">→</text>
+      </view>
+      <view style="height:1rpx; background-color:#1E1E3A;"></view>
+      <view style="display:flex; align-items:center; padding:32rpx;" bindtap="onSettings">
+        <text style="font-size:32rpx; margin-right:24rpx;">🤖</text>
+        <text style="flex:1; font-size:28rpx; color:#FFFFFF;">AI模型设置</text>
+        <text style="font-size:24rpx; color:#6C6C80;">→</text>
+      </view>
+      <view style="height:1rpx; background-color:#1E1E3A;"></view>
+      <view style="display:flex; align-items:center; padding:32rpx;" bindtap="onLogout">
+        <text style="font-size:32rpx; margin-right:24rpx;">🚪</text>
+        <text style="flex:1; font-size:28rpx; color:#E74C3C;">退出登录</text>
+      </view>
+    </view>
+  </view>
+</view>

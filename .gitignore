@@ -45,3 +45,4 @@ build/
 .env.test.local
 .env.production.local.claude/
 .vercel
+.env.vercel

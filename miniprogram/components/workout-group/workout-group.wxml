@@ -1,0 +1,30 @@
+<view class="workout-group">
+  <view class="group-header">
+    <text class="group-icon">🏋️</text>
+    <text class="group-name">{{muscleGroup}}训练</text>
+  </view>
+  <view class="exercise-list">
+    <view
+      class="exercise-item {{item.completed ? 'exercise-completed' : ''}}"
+      wx:for="{{exercises}}"
+      wx:key="name"
+      data-index="{{index}}"
+      bindtap="onExerciseTap"
+    >
+      <view class="exercise-check">
+        <view class="check-circle {{item.completed ? 'check-done' : ''}}">
+          <text wx:if="{{item.completed}}">✓</text>
+        </view>
+      </view>
+      <view class="exercise-info">
+        <text class="exercise-name {{item.completed ? 'text-line-through' : ''}}">{{item.name}}</text>
+        <view class="exercise-meta">
+          <text class="meta-tag">{{item.sets}}组×{{item.reps}}</text>
+          <text class="meta-tag">休{{item.rest_seconds}}秒</text>
+          <text class="meta-tag meta-cal">~{{item.calories}}千卡</text>
+        </view>
+        <text class="exercise-notes" wx:if="{{item.notes}}">{{item.notes}}</text>
+      </view>
+    </view>
+  </view>
+</view>

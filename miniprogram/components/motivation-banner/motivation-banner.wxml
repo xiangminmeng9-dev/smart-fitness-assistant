@@ -1,0 +1,5 @@
+<view class="motivation-banner">
+  <text class="motivation-icon">💪</text>
+  <text class="motivation-quote">"{{quote}}"</text>
+  <text class="motivation-subtitle" wx:if="{{subtitle}}">{{subtitle}}</text>
+</view>

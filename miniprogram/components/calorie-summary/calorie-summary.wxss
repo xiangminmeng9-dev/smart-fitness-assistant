@@ -1,0 +1,31 @@
+.calorie-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.calorie-item {
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--card-radius-sm);
+  padding: var(--spacing-md);
+  text-align: center;
+}
+
+.calorie-value {
+  display: block;
+  font-size: var(--font-size-h2);
+  font-weight: 700;
+  margin-bottom: 4rpx;
+}
+
+.calorie-label {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-tertiary);
+}
+
+.calorie-intake .calorie-value { color: var(--color-accent-green); }
+.calorie-burned .calorie-value { color: var(--color-accent-orange); }
+.calorie-bmr .calorie-value { color: var(--color-accent-blue); }
+.calorie-deficit .calorie-value { color: var(--color-accent-green); }
+.calorie-surplus .calorie-value { color: var(--color-accent-red); }

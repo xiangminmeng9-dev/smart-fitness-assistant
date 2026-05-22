@@ -64,6 +64,17 @@ async def get_weather(
     获取真实天气信息，支持当天和未来预测。
     使用 Open-Meteo API（免费，无需 API Key）。
     """
+    return await get_weather_data(lat, lng, target_date)
+
+
+async def get_weather_data(
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    target_date: Optional[str] = None,
+) -> dict:
+    """
+    获取天气数据的内部函数，可被其他模块调用。
+    """
     latitude = lat if lat is not None else 39.9042
     longitude = lng if lng is not None else 116.4074
 

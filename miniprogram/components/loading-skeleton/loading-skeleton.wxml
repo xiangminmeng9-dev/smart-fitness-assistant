@@ -1,0 +1,7 @@
+<view class="skeleton" wx:if="{{loading}}">
+  <view class="skeleton-card">
+    <view class="skeleton-line skeleton-line-lg shimmer"></view>
+    <view class="skeleton-line skeleton-line-md shimmer" wx:for="{{rows}}" wx:key="index"></view>
+  </view>
+</view>
+<slot wx:else></slot>

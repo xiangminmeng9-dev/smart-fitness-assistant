@@ -1,0 +1,6 @@
+<view class="weather-card">
+  <text class="weather-icon">📍</text>
+  <text class="weather-city">{{city}}</text>
+  <text class="weather-temp">{{temperature}}°C</text>
+  <text class="weather-desc">{{description}}</text>
+</view>

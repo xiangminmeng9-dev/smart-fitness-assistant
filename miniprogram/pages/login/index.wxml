@@ -1,0 +1,40 @@
+<view style="background-color:#1A1A2E; min-height:100vh; display:flex; flex-direction:column; padding:0 48rpx; padding-top:15vh;">
+  <view style="display:flex; flex-direction:column; align-items:center; margin-bottom:64rpx;">
+    <text style="font-size:96rpx; margin-bottom:24rpx;">🏋️</text>
+    <text style="font-size:48rpx; font-weight:700; color:#FFFFFF; margin-bottom:8rpx;">智能健身助手</text>
+    <text style="font-size:24rpx; color:#A0A0B8;">AI驱动的个性化健身</text>
+  </view>
+
+  <view style="display:flex; flex-direction:column; gap:24rpx;">
+    <view style="display:flex; align-items:center; justify-content:center; height:88rpx; background:linear-gradient(135deg,#2ECC71,#27AE60); border-radius:44rpx; box-shadow:0 4rpx 16rpx rgba(46,204,113,0.3);" bindtap="onWechatLogin">
+      <text style="color:#FFFFFF; font-size:34rpx; font-weight:600;">🟢 微信一键登录</text>
+    </view>
+
+    <view style="display:flex; align-items:center; gap:24rpx; margin:16rpx 0;">
+      <view style="flex:1; height:1rpx; background-color:#1E1E3A;"></view>
+      <text style="font-size:20rpx; color:#6C6C80; white-space:nowrap;">或使用账号登录</text>
+      <view style="flex:1; height:1rpx; background-color:#1E1E3A;"></view>
+    </view>
+
+    <view style="margin-bottom:16rpx;">
+      <input style="background-color:#0F3460; border-radius:16rpx; padding:0 32rpx; height:88rpx; color:#FFFFFF; font-size:28rpx;" placeholder="请输入用户名" placeholder-style="color:#6C6C80;" value="{{username}}" bindinput="onUsernameInput" />
+    </view>
+    <view style="margin-bottom:16rpx;">
+      <input style="background-color:#0F3460; border-radius:16rpx; padding:0 32rpx; height:88rpx; color:#FFFFFF; font-size:28rpx;" placeholder="请输入密码" placeholder-style="color:#6C6C80;" password value="{{password}}" bindinput="onPasswordInput" />
+    </view>
+    <view wx:if="{{isRegister}}" style="margin-bottom:16rpx;">
+      <input style="background-color:#0F3460; border-radius:16rpx; padding:0 32rpx; height:88rpx; color:#FFFFFF; font-size:28rpx;" placeholder="请确认密码" placeholder-style="color:#6C6C80;" password value="{{confirmPassword}}" bindinput="onConfirmPasswordInput" />
+    </view>
+
+    <view wx:if="{{!isRegister}}" style="display:flex; align-items:center; justify-content:center; height:88rpx; background:linear-gradient(135deg,#2ECC71,#27AE60); color:#FFFFFF; font-size:34rpx; font-weight:600; border-radius:44rpx;" bindtap="onAccountLogin">
+      <text style="color:#FFFFFF; font-size:34rpx; font-weight:600;">登录</text>
+    </view>
+    <view wx:if="{{isRegister}}" style="display:flex; align-items:center; justify-content:center; height:88rpx; background:linear-gradient(135deg,#2ECC71,#27AE60); color:#FFFFFF; font-size:34rpx; font-weight:600; border-radius:44rpx;" bindtap="onRegister">
+      <text style="color:#FFFFFF; font-size:34rpx; font-weight:600;">注册</text>
+    </view>
+
+    <view style="display:flex; justify-content:center; margin-top:24rpx;" bindtap="onToggleMode">
+      <text style="font-size:24rpx; color:#2ECC71;">{{isRegister ? '已有账号？立即登录' : '还没有账号？立即注册'}}</text>
+    </view>
+  </view>
+</view>

@@ -55,6 +55,63 @@ const ProfilePage = () => {
     return { label: '肥胖', color: 'text-red-600' };
   }, [bmi]);
 
+  // Goal feasibility analysis
+  const feasibilityAnalysis = useMemo(() => {
+    const weight = parseFloat(formData.weight);
+    const targetWeight = parseFloat(formData.target_weight);
+    const cycleDays = parseInt(formData.training_cycle_days) || 28;
+
+    if (!weight || !targetWeight || weight === targetWeight) {
+      return null;
+    }
+
+    const weightDiff = Math.abs(weight - targetWeight);
+    const weeks = cycleDays / 7;
+    const weeklyChange = weightDiff / weeks;
+
+    // 健康减重：每周0.5-1kg，增肌：每周0.25-0.5kg
+    const isWeightLoss = weight > targetWeight;
+    const maxHealthyWeekly = isWeightLoss ? 1.0 : 0.5;
+
+    let feasibility: 'achievable' | 'challenging' | 'unrealistic';
+    let healthNote: string;
+    let suggestedDays: number;
+
+    if (weeklyChange <= maxHealthyWeekly) {
+      feasibility = 'achievable';
+      healthNote = '目标合理，可以健康达成';
+    } else if (weeklyChange <= maxHealthyWeekly * 1.5) {
+      feasibility = 'challenging';
+      healthNote = '目标较激进，需要严格控制饮食和坚持训练';
+    } else {
+      feasibility = 'unrealistic';
+      healthNote = '目标不切实际，建议延长周期或调整目标';
+    }
+
+    // 计算建议周期
+    if (isWeightLoss) {
+      suggestedDays = Math.ceil(weightDiff / 0.75 * 7); // 按0.75kg/周
+    } else {
+      suggestedDays = Math.ceil(weightDiff / 0.35 * 7); // 按0.35kg/周
+    }
+
+    // 计算每日热量调整
+    const dailyCalorieAdjustment = isWeightLoss
+      ? Math.min(Math.round((weightDiff * 7700) / cycleDays), 1000)
+      : Math.min(Math.round((weightDiff * 7700 * 1.5) / cycleDays), 500);
+
+    return {
+      weightDiff,
+      weeklyChange: weeklyChange.toFixed(2),
+      feasibility,
+      healthNote,
+      suggestedDays,
+      dailyCalorieAdjustment,
+      isWeightLoss,
+      maxHealthyWeekly,
+    };
+  }, [formData.weight, formData.target_weight, formData.training_cycle_days]);
+
   // Load existing profile on mount
   useEffect(() => {
     fetchProfile();
@@ -347,6 +404,46 @@ const ProfilePage = () => {
                     ? `需减重 ${(parseFloat(formData.weight) - parseFloat(formData.target_weight)).toFixed(1)} kg`
                     : `需增重 ${(parseFloat(formData.target_weight) - parseFloat(formData.weight)).toFixed(1)} kg`}
                 </p>
+              )}
+              {/* Feasibility Analysis */}
+              {feasibilityAnalysis && (
+                <div className={`mt-3 p-4 rounded-lg ${
+                  feasibilityAnalysis.feasibility === 'achievable' ? 'bg-green-50 border border-green-200' :
+                  feasibilityAnalysis.feasibility === 'challenging' ? 'bg-yellow-50 border border-yellow-200' :
+                  'bg-red-50 border border-red-200'
+                }`}>
+                  <div className="flex items-start">
+                    <span className="text-lg mr-2">
+                      {feasibilityAnalysis.feasibility === 'achievable' ? '✅' :
+                       feasibilityAnalysis.feasibility === 'challenging' ? '⚠️' : '❌'}
+                    </span>
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium ${
+                        feasibilityAnalysis.feasibility === 'achievable' ? 'text-green-800' :
+                        feasibilityAnalysis.feasibility === 'challenging' ? 'text-yellow-800' :
+                        'text-red-800'
+                      }`}>
+                        {feasibilityAnalysis.healthNote}
+                      </p>
+                      <div className="mt-2 text-xs space-y-1">
+                        <p className="text-gray-600">
+                          每周需{feasibilityAnalysis.isWeightLoss ? '减重' : '增重'}：{feasibilityAnalysis.weeklyChange} kg
+                          <span className="ml-2 text-gray-400">
+                            (健康范围: {feasibilityAnalysis.isWeightLoss ? '0.5-1.0' : '0.25-0.5'} kg/周)
+                          </span>
+                        </p>
+                        <p className="text-gray-600">
+                          每日热量{feasibilityAnalysis.isWeightLoss ? '缺口' : '盈余'}：约 {feasibilityAnalysis.dailyCalorieAdjustment} kcal
+                        </p>
+                        {feasibilityAnalysis.feasibility === 'unrealistic' && (
+                          <p className="text-red-600 font-medium">
+                            建议周期：{feasibilityAnalysis.suggestedDays} 天
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 

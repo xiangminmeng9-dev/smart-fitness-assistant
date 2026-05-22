@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     # Weather API
     WEATHER_API_KEY: str = ""
 
+    # WeChat Mini Program
+    WECHAT_APP_ID: str = ""
+    WECHAT_APP_SECRET: str = ""
+
     # CORS - 支持外网访问时动态配置
     CORS_ORIGINS: List[str] = ["*"]  # 生产环境建议改为具体域名
 

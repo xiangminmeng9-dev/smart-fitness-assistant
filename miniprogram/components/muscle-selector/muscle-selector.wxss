@@ -1,0 +1,26 @@
+.muscle-selector {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.muscle-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 72rpx;
+  background-color: var(--color-bg-tertiary);
+  border-radius: 36rpx;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  border: 2rpx solid transparent;
+  transition: all 0.2s;
+}
+
+.muscle-active {
+  background-color: var(--color-accent-green);
+  color: #FFFFFF;
+  font-weight: 500;
+  border-color: var(--color-accent-green);
+}

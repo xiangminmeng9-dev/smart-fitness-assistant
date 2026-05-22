@@ -1,0 +1,18 @@
+<view class="calorie-grid">
+  <view class="calorie-item calorie-intake">
+    <text class="calorie-value">{{intake}}</text>
+    <text class="calorie-label">摄入(千卡)</text>
+  </view>
+  <view class="calorie-item calorie-burned">
+    <text class="calorie-value">{{burned}}</text>
+    <text class="calorie-label">消耗(千卡)</text>
+  </view>
+  <view class="calorie-item calorie-bmr">
+    <text class="calorie-value">{{bmr}}</text>
+    <text class="calorie-label">基础(千卡)</text>
+  </view>
+  <view class="calorie-item {{net < 0 ? 'calorie-deficit' : 'calorie-surplus'}}">
+    <text class="calorie-value">{{net}}</text>
+    <text class="calorie-label">净值(千卡)</text>
+  </view>
+</view>

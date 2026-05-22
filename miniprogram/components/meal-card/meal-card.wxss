@@ -1,0 +1,126 @@
+.meal-card {
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  margin-bottom: var(--spacing-md);
+  box-shadow: var(--shadow-card);
+}
+
+.meal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meal-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.meal-icon {
+  font-size: 32rpx;
+}
+
+.meal-name {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.meal-time {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-tertiary);
+}
+
+.meal-cal-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.meal-cal {
+  font-size: var(--font-size-caption);
+  color: var(--color-accent-orange);
+  font-weight: 500;
+}
+
+.expand-icon {
+  font-size: 20rpx;
+  color: var(--color-text-tertiary);
+}
+
+.meal-body {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1rpx solid var(--color-border-light);
+}
+
+.tab-selector {
+  display: flex;
+  background-color: var(--color-bg-tertiary);
+  border-radius: 12rpx;
+  padding: 4rpx;
+  margin-bottom: var(--spacing-md);
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 12rpx 0;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  border-radius: 10rpx;
+  transition: all 0.2s;
+}
+
+.tab-active {
+  background-color: var(--color-accent-green);
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.meal-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.meal-dish-name {
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.meal-macros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.macro-tag {
+  font-size: var(--font-size-micro);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.macro-cal {
+  background-color: rgba(243, 156, 18, 0.15);
+  color: var(--color-accent-orange);
+}
+
+.macro-protein {
+  background-color: rgba(46, 204, 113, 0.15);
+  color: var(--color-accent-green);
+}
+
+.macro-carbs {
+  background-color: rgba(52, 152, 219, 0.15);
+  color: var(--color-accent-blue);
+}
+
+.meal-desc {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
