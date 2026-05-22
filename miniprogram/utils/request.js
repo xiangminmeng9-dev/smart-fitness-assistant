@@ -1,21 +1,43 @@
-var { getBaseUrl } = require('./constants')
-var { API } = require('./constants')
+var { getBaseUrl, API } = require('./constants')
+
+var TOKEN_KEY = 'token'
 
 function getToken() {
-  var app = getApp()
-  return app.globalData.token || wx.getStorageSync('token') || ''
+  try {
+    var app = getApp()
+    if (app && app.globalData && app.globalData.token) {
+      return app.globalData.token
+    }
+  } catch (e) {}
+  try {
+    return wx.getStorageSync(TOKEN_KEY) || ''
+  } catch (e) {
+    return ''
+  }
 }
 
 function setToken(token) {
-  var app = getApp()
-  app.globalData.token = token
-  wx.setStorageSync('token', token)
+  try {
+    var app = getApp()
+    if (app && app.globalData) {
+      app.globalData.token = token
+    }
+  } catch (e) {}
+  try {
+    wx.setStorageSync(TOKEN_KEY, token)
+  } catch (e) {}
 }
 
 function clearToken() {
-  var app = getApp()
-  app.globalData.token = ''
-  wx.removeStorageSync('token')
+  try {
+    var app = getApp()
+    if (app && app.globalData) {
+      app.globalData.token = ''
+    }
+  } catch (e) {}
+  try {
+    wx.removeStorageSync(TOKEN_KEY)
+  } catch (e) {}
 }
 
 function request(options) {
@@ -26,6 +48,8 @@ function request(options) {
   var baseUrl = getBaseUrl()
   var token = getToken()
 
+  var fullUrl = baseUrl + url
+
   var header = {
     'Content-Type': 'application/json',
   }
@@ -34,28 +58,34 @@ function request(options) {
     header['Authorization'] = 'Bearer ' + token
   }
 
+  console.log('[REQUEST]', method, fullUrl)
+
   return new Promise(function(resolve, reject) {
     wx.request({
-      url: baseUrl + url,
+      url: fullUrl,
       method: method,
       data: data,
       header: header,
       success: function(res) {
+        console.log('[RESPONSE]', res.statusCode, fullUrl)
         if (res.statusCode === 401) {
           clearToken()
-          wx.reLaunch({ url: '/pages/login/index' })
-          reject(new Error('登录已过期，请重新登录'))
+          reject(new Error('登录已过期'))
           return
         }
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res.data)
         } else {
-          var msg = (res.data && res.data.detail) || '请求失败'
+          var msg = '请求失败(' + res.statusCode + ')'
+          if (res.data && res.data.detail) {
+            msg = res.data.detail
+          }
           reject(new Error(msg))
         }
       },
       fail: function(err) {
-        reject(new Error('网络错误，请检查网络连接'))
+        console.error('[REQUEST FAIL]', fullUrl, err.errMsg)
+        reject(new Error('网络请求失败: ' + (err.errMsg || '未知错误')))
       },
     })
   })

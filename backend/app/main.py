@@ -52,18 +52,27 @@ def _migrate_db():
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
             try:
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
+                # Use IF NOT EXISTS for PostgreSQL compatibility
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_type}"))
                 conn.commit()
-                print(f"  Added column {table}.{col}")
-            except Exception:
-                pass  # Column already exists
+                print(f"  Migrated column {table}.{col}")
+            except Exception as e:
+                # Fallback: try without IF NOT EXISTS (SQLite)
+                try:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
+                    conn.commit()
+                    print(f"  Migrated column {table}.{col}")
+                except Exception as e2:
+                    conn.rollback()
+                    print(f"  Column {table}.{col} already exists or migration skipped")
 
         # Create unique index for wechat_openid
         try:
             conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_wechat_openid ON users (wechat_openid)"))
             conn.commit()
-        except Exception:
-            pass  # Index already exists
+            print("  Migrated index ix_users_wechat_openid")
+        except Exception as e:
+            print(f"  Index migration skipped: {e}")
 
 # 添加速率限制中间件
 app.state.limiter = limiter
