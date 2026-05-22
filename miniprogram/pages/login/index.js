@@ -6,22 +6,42 @@ Page({
     username: '',
     password: '',
     confirmPassword: '',
-    debugMsg: '页面已加载，等待操作...',
+    debugMsg: '',
+  },
+
+  onLoad: function() {
+    // 页面加载时测试API连通性
+    this.testApiConnect()
+  },
+
+  testApiConnect: function() {
+    var that = this
+    that.setData({ debugMsg: '测试API连接...' })
+    wx.request({
+      url: BASE_URL + '/api/system/motivation',
+      method: 'GET',
+      success: function(res) {
+        that.setData({ debugMsg: 'API连通! status=' + res.statusCode })
+      },
+      fail: function(err) {
+        that.setData({ debugMsg: 'API不通: ' + err.errMsg })
+      }
+    })
   },
 
   onWechatLogin: function() {
     var that = this
-    that.setData({ debugMsg: '正在调用wx.login...' })
+    that.setData({ debugMsg: '调用wx.login...' })
     wx.login({
       success: function(res) {
-        that.setData({ debugMsg: 'wx.login成功, code=' + res.code })
+        that.setData({ debugMsg: 'wx.login OK, code=' + res.code + ', 请求服务器...' })
         wx.request({
           url: BASE_URL + '/api/auth/wechat-login',
           method: 'POST',
           data: { code: res.code },
           header: { 'Content-Type': 'application/json' },
           success: function(resp) {
-            that.setData({ debugMsg: '微信登录响应: ' + resp.statusCode + ' ' + JSON.stringify(resp.data).substring(0, 150) })
+            that.setData({ debugMsg: '微信登录响应: status=' + resp.statusCode + ' body=' + JSON.stringify(resp.data).substring(0, 200) })
             if (resp.statusCode === 200 && resp.data && resp.data.access_token) {
               wx.setStorageSync('token', resp.data.access_token)
               wx.switchTab({ url: '/pages/index/index' })
@@ -41,17 +61,17 @@ Page({
   onAccountLogin: function() {
     var that = this
     if (!that.data.username || !that.data.password) {
-      that.setData({ debugMsg: '请输入用户名和密码' })
+      that.setData({ debugMsg: '请先输入用户名和密码' })
       return
     }
-    that.setData({ debugMsg: '正在请求登录...' })
+    that.setData({ debugMsg: '请求登录 ' + BASE_URL + '/api/auth/login ...' })
     wx.request({
       url: BASE_URL + '/api/auth/login',
       method: 'POST',
       data: { username: that.data.username, password: that.data.password },
       header: { 'Content-Type': 'application/json' },
       success: function(resp) {
-        that.setData({ debugMsg: '登录响应: ' + resp.statusCode + ' ' + JSON.stringify(resp.data).substring(0, 150) })
+        that.setData({ debugMsg: '登录响应: status=' + resp.statusCode + ' body=' + JSON.stringify(resp.data).substring(0, 200) })
         if (resp.statusCode === 200 && resp.data && resp.data.access_token) {
           wx.setStorageSync('token', resp.data.access_token)
           wx.switchTab({ url: '/pages/index/index' })
@@ -66,22 +86,24 @@ Page({
   onRegister: function() {
     var that = this
     if (!that.data.username || !that.data.password) {
-      that.setData({ debugMsg: '请输入用户名和密码' })
+      that.setData({ debugMsg: '请先输入用户名和密码' })
       return
     }
     if (that.data.password !== that.data.confirmPassword) {
       that.setData({ debugMsg: '两次密码不一致' })
       return
     }
-    that.setData({ debugMsg: '正在注册...' })
+    that.setData({ debugMsg: '请求注册 ' + BASE_URL + '/api/auth/register ...' })
     wx.request({
       url: BASE_URL + '/api/auth/register',
       method: 'POST',
       data: { username: that.data.username, password: that.data.password },
       header: { 'Content-Type': 'application/json' },
       success: function(resp) {
+        that.setData({ debugMsg: '注册响应: status=' + resp.statusCode + ' body=' + JSON.stringify(resp.data).substring(0, 200) })
         if (resp.statusCode === 200) {
-          that.setData({ debugMsg: '注册成功，自动登录...' })
+          // 注册成功，自动登录
+          that.setData({ debugMsg: '注册成功! 自动登录...' })
           wx.request({
             url: BASE_URL + '/api/auth/login',
             method: 'POST',
@@ -92,15 +114,13 @@ Page({
                 wx.setStorageSync('token', resp2.data.access_token)
                 wx.switchTab({ url: '/pages/index/index' })
               } else {
-                that.setData({ debugMsg: '自动登录失败: ' + resp2.statusCode })
+                that.setData({ debugMsg: '自动登录失败: status=' + resp2.statusCode })
               }
             },
-            fail: function(err) {
-              that.setData({ debugMsg: '自动登录请求失败: ' + err.errMsg })
+            fail: function(err2) {
+              that.setData({ debugMsg: '自动登录请求失败: ' + err2.errMsg })
             }
           })
-        } else {
-          that.setData({ debugMsg: '注册失败: ' + resp.statusCode + ' ' + JSON.stringify(resp.data).substring(0, 100) })
         }
       },
       fail: function(err) {
@@ -113,15 +133,7 @@ Page({
     this.setData({ isRegister: !this.data.isRegister, debugMsg: '' })
   },
 
-  onUsernameInput: function(e) {
-    this.setData({ username: e.detail.value })
-  },
-
-  onPasswordInput: function(e) {
-    this.setData({ password: e.detail.value })
-  },
-
-  onConfirmPasswordInput: function(e) {
-    this.setData({ confirmPassword: e.detail.value })
-  },
+  onUsernameInput: function(e) { this.setData({ username: e.detail.value }) },
+  onPasswordInput: function(e) { this.setData({ password: e.detail.value }) },
+  onConfirmPasswordInput: function(e) { this.setData({ confirmPassword: e.detail.value }) },
 })
