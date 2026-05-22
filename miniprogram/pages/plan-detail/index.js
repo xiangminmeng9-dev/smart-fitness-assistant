@@ -1,27 +1,24 @@
-var httpModule = require('../../utils/request')
-var http = httpModule.http
-var { API } = require('../../utils/constants')
+var BASE_URL = 'https://smart-fitness-assistant.vercel.app'
 
 Page({
-  data: {
-    plan: null,
-    date: '',
-    loading: true,
-  },
+  data: { plan: null, date: '', loading: true },
 
   onLoad: function(options) {
-    if (options.date) {
+    if (options && options.date) {
       this.setData({ date: options.date })
       this.loadPlan(options.date)
     }
   },
 
   loadPlan: function(date) {
-    var that = this
-    http.get(API.PLAN_BY_DATE(date)).then(function(res) {
-      that.setData({ plan: res, loading: false })
-    }).catch(function() {
-      that.setData({ loading: false })
+    var that = this, token = wx.getStorageSync('token')
+    wx.request({
+      url: BASE_URL + '/api/plan/' + date,
+      header: { 'Authorization': 'Bearer ' + token },
+      success: function(res) {
+        that.setData({ plan: res.statusCode===200 ? res.data : null, loading: false })
+      },
+      fail: function() { that.setData({ loading: false }) }
     })
   },
 })

@@ -1,4 +1,4 @@
-var { getBaseUrl, API } = require('../../utils/constants')
+var BASE_URL = 'https://smart-fitness-assistant.vercel.app'
 
 Page({
   data: {
@@ -6,124 +6,105 @@ Page({
     username: '',
     password: '',
     confirmPassword: '',
-    debugMsg: '',
+    debugMsg: '页面已加载，等待操作...',
   },
 
   onWechatLogin: function() {
     var that = this
-    that.setData({ debugMsg: '正在获取微信code...' })
+    that.setData({ debugMsg: '正在调用wx.login...' })
     wx.login({
       success: function(res) {
-        if (!res.code) {
-          that.setData({ debugMsg: '微信login返回空code' })
-          return
-        }
-        that.setData({ debugMsg: '获取code成功，请求服务器...' })
-        var baseUrl = getBaseUrl()
+        that.setData({ debugMsg: 'wx.login成功, code=' + res.code })
         wx.request({
-          url: baseUrl + API.AUTH_WECHAT_LOGIN,
+          url: BASE_URL + '/api/auth/wechat-login',
           method: 'POST',
           data: { code: res.code },
           header: { 'Content-Type': 'application/json' },
           success: function(resp) {
-            if (resp.statusCode >= 200 && resp.statusCode < 300 && resp.data && resp.data.access_token) {
+            that.setData({ debugMsg: '微信登录响应: ' + resp.statusCode + ' ' + JSON.stringify(resp.data).substring(0, 150) })
+            if (resp.statusCode === 200 && resp.data && resp.data.access_token) {
               wx.setStorageSync('token', resp.data.access_token)
-              that.setData({ debugMsg: '微信登录成功!' })
               wx.switchTab({ url: '/pages/index/index' })
-            } else {
-              var msg = '登录失败(' + resp.statusCode + '): ' + JSON.stringify(resp.data).substring(0, 200)
-              that.setData({ debugMsg: msg })
             }
           },
           fail: function(err) {
-            that.setData({ debugMsg: '请求失败: ' + (err.errMsg || 'unknown') })
+            that.setData({ debugMsg: '微信登录请求失败: ' + err.errMsg })
           }
         })
       },
       fail: function(err) {
-        that.setData({ debugMsg: 'wx.login失败: ' + (err.errMsg || 'unknown') })
+        that.setData({ debugMsg: 'wx.login失败: ' + err.errMsg })
       }
     })
   },
 
   onAccountLogin: function() {
     var that = this
-    var username = that.data.username
-    var password = that.data.password
-    if (!username || !password) {
-      wx.showToast({ title: '请输入用户名和密码', icon: 'none' })
+    if (!that.data.username || !that.data.password) {
+      that.setData({ debugMsg: '请输入用户名和密码' })
       return
     }
-    that.setData({ debugMsg: '正在登录...' })
-    var baseUrl = getBaseUrl()
+    that.setData({ debugMsg: '正在请求登录...' })
     wx.request({
-      url: baseUrl + API.AUTH_LOGIN,
+      url: BASE_URL + '/api/auth/login',
       method: 'POST',
-      data: { username: username, password: password },
+      data: { username: that.data.username, password: that.data.password },
       header: { 'Content-Type': 'application/json' },
       success: function(resp) {
-        if (resp.statusCode >= 200 && resp.statusCode < 300 && resp.data && resp.data.access_token) {
+        that.setData({ debugMsg: '登录响应: ' + resp.statusCode + ' ' + JSON.stringify(resp.data).substring(0, 150) })
+        if (resp.statusCode === 200 && resp.data && resp.data.access_token) {
           wx.setStorageSync('token', resp.data.access_token)
-          that.setData({ debugMsg: '登录成功!' })
           wx.switchTab({ url: '/pages/index/index' })
-        } else {
-          var msg = '登录失败(' + resp.statusCode + '): ' + JSON.stringify(resp.data).substring(0, 200)
-          that.setData({ debugMsg: msg })
         }
       },
       fail: function(err) {
-        that.setData({ debugMsg: '请求失败: ' + (err.errMsg || 'unknown') })
+        that.setData({ debugMsg: '登录请求失败: ' + err.errMsg })
       }
     })
   },
 
   onRegister: function() {
     var that = this
-    var username = that.data.username
-    var password = that.data.password
-    var confirmPassword = that.data.confirmPassword
-    if (!username || !password) {
-      wx.showToast({ title: '请输入用户名和密码', icon: 'none' })
+    if (!that.data.username || !that.data.password) {
+      that.setData({ debugMsg: '请输入用户名和密码' })
       return
     }
-    if (password !== confirmPassword) {
-      wx.showToast({ title: '两次密码不一致', icon: 'none' })
+    if (that.data.password !== that.data.confirmPassword) {
+      that.setData({ debugMsg: '两次密码不一致' })
       return
     }
     that.setData({ debugMsg: '正在注册...' })
-    var baseUrl = getBaseUrl()
     wx.request({
-      url: baseUrl + API.AUTH_REGISTER,
+      url: BASE_URL + '/api/auth/register',
       method: 'POST',
-      data: { username: username, password: password },
+      data: { username: that.data.username, password: that.data.password },
       header: { 'Content-Type': 'application/json' },
       success: function(resp) {
-        if (resp.statusCode >= 200 && resp.statusCode < 300) {
-          that.setData({ debugMsg: '注册成功，正在登录...' })
+        if (resp.statusCode === 200) {
+          that.setData({ debugMsg: '注册成功，自动登录...' })
           wx.request({
-            url: baseUrl + API.AUTH_LOGIN,
+            url: BASE_URL + '/api/auth/login',
             method: 'POST',
-            data: { username: username, password: password },
+            data: { username: that.data.username, password: that.data.password },
             header: { 'Content-Type': 'application/json' },
             success: function(resp2) {
-              if (resp2.statusCode >= 200 && resp2.statusCode < 300 && resp2.data && resp2.data.access_token) {
+              if (resp2.statusCode === 200 && resp2.data && resp2.data.access_token) {
                 wx.setStorageSync('token', resp2.data.access_token)
                 wx.switchTab({ url: '/pages/index/index' })
               } else {
-                that.setData({ debugMsg: '登录失败: ' + JSON.stringify(resp2.data).substring(0, 200) })
+                that.setData({ debugMsg: '自动登录失败: ' + resp2.statusCode })
               }
             },
             fail: function(err) {
-              that.setData({ debugMsg: '登录请求失败: ' + (err.errMsg || 'unknown') })
+              that.setData({ debugMsg: '自动登录请求失败: ' + err.errMsg })
             }
           })
         } else {
-          var msg = '注册失败(' + resp.statusCode + '): ' + JSON.stringify(resp.data).substring(0, 200)
-          that.setData({ debugMsg: msg })
+          that.setData({ debugMsg: '注册失败: ' + resp.statusCode + ' ' + JSON.stringify(resp.data).substring(0, 100) })
         }
       },
       fail: function(err) {
-        that.setData({ debugMsg: '请求失败: ' + (err.errMsg || 'unknown') })
+        that.setData({ debugMsg: '注册请求失败: ' + err.errMsg })
       }
     })
   },

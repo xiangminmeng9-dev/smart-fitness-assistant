@@ -1,5 +1,13 @@
-var { formatDate, formatDateCN } = require('../../utils/formatters')
-var { getBaseUrl, API } = require('../../utils/constants')
+var BASE_URL = 'https://smart-fitness-assistant.vercel.app'
+
+function formatDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0')
+}
+
+function formatDateCN(d) {
+  var w = ['周日','周一','周二','周三','周四','周五','周六']
+  return (d.getMonth()+1) + '月' + d.getDate() + '日 ' + w[d.getDay()]
+}
 
 Page({
   data: {
@@ -10,76 +18,53 @@ Page({
     plan: null,
     hasPlan: false,
     weather: null,
-    motivation: '',
+    motivation: '坚持就是胜利',
     debugMsg: '',
   },
 
   onShow: function() {
     var token = wx.getStorageSync('token')
     if (!token) {
-      this.setData({ loggedIn: false, loading: false })
-      // Test API directly
+      this.setData({ loggedIn: false, loading: false, debugMsg: '未登录' })
       this.testApi()
       return
     }
-    this.setData({ loggedIn: true })
+    this.setData({ loggedIn: true, debugMsg: '已登录' })
     this.loadAllData()
   },
 
   testApi: function() {
     var that = this
-    var baseUrl = getBaseUrl()
-    that.setData({ debugMsg: '测试连接: ' + baseUrl })
-
+    that.setData({ debugMsg: '测试API...' })
     wx.request({
-      url: baseUrl + '/api/system/motivation',
+      url: BASE_URL + '/api/system/motivation',
       method: 'GET',
-      header: { 'Content-Type': 'application/json' },
       success: function(res) {
-        var msg = 'API成功! status=' + res.statusCode + ' data=' + JSON.stringify(res.data).substring(0, 100)
-        that.setData({ debugMsg: msg })
+        that.setData({ debugMsg: 'API OK(' + res.statusCode + '): ' + JSON.stringify(res.data).substring(0, 100) })
       },
       fail: function(err) {
-        var msg = 'API失败! err=' + (err.errMsg || 'unknown')
-        that.setData({ debugMsg: msg })
+        that.setData({ debugMsg: 'API FAIL: ' + err.errMsg })
       }
     })
-  },
-
-  onPullDownRefresh: function() {
-    if (this.data.loggedIn) {
-      this.loadAllData()
-    }
-    wx.stopPullDownRefresh()
   },
 
   loadAllData: function() {
     var that = this
     var today = new Date()
-    var dateStr = formatDate(today)
-    that.setData({
-      currentDate: dateStr,
-      dateDisplay: formatDateCN(today),
-      loading: true
-    })
-
-    that.loadPlan(dateStr)
-    that.loadWeather()
+    that.setData({ currentDate: formatDate(today), dateDisplay: formatDateCN(today), loading: true, debugMsg: '加载数据...' })
+    that.loadPlan(formatDate(today))
     that.loadMotivation()
   },
 
   loadPlan: function(date) {
     var that = this
-    var baseUrl = getBaseUrl()
+    var token = wx.getStorageSync('token')
     wx.request({
-      url: baseUrl + API.PLAN_BY_DATE(date),
+      url: BASE_URL + '/api/plan/' + date,
       method: 'GET',
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + wx.getStorageSync('token')
-      },
+      header: { 'Authorization': 'Bearer ' + token },
       success: function(res) {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
+        if (res.statusCode === 200) {
           that.setData({ plan: res.data, hasPlan: true, loading: false })
         } else {
           that.setData({ plan: null, hasPlan: false, loading: false })
@@ -91,87 +76,49 @@ Page({
     })
   },
 
-  loadWeather: function() {
-    var that = this
-    var baseUrl = getBaseUrl()
-    wx.request({
-      url: baseUrl + API.SYSTEM_WEATHER,
-      method: 'GET',
-      header: { 'Content-Type': 'application/json' },
-      success: function(res) {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          that.setData({ weather: res.data })
-        }
-      },
-      fail: function() {
-        that.setData({ weather: null })
-      }
-    })
-  },
-
   loadMotivation: function() {
     var that = this
-    var baseUrl = getBaseUrl()
     wx.request({
-      url: baseUrl + API.SYSTEM_MOTIVATION,
-      method: 'GET',
-      header: { 'Content-Type': 'application/json' },
+      url: BASE_URL + '/api/system/motivation',
       success: function(res) {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          var text = (res.data && res.data.text) ? res.data.text : (res.data && res.data.quote) ? res.data.quote : '坚持就是胜利'
-          that.setData({ motivation: text })
+        if (res.statusCode === 200 && res.data) {
+          that.setData({ motivation: res.data.text || res.data.quote || '坚持就是胜利' })
         }
       },
-      fail: function() {
-        that.setData({ motivation: '坚持就是胜利' })
-      }
+      fail: function() {}
     })
-  },
-
-  onPrevDay: function() {
-    var current = new Date(this.data.currentDate)
-    current.setDate(current.getDate() - 1)
-    var dateStr = formatDate(current)
-    this.setData({
-      currentDate: dateStr,
-      dateDisplay: formatDateCN(current),
-      loading: true
-    })
-    this.loadPlan(dateStr)
-  },
-
-  onNextDay: function() {
-    var current = new Date(this.data.currentDate)
-    current.setDate(current.getDate() + 1)
-    var dateStr = formatDate(current)
-    this.setData({
-      currentDate: dateStr,
-      dateDisplay: formatDateCN(current),
-      loading: true
-    })
-    this.loadPlan(dateStr)
   },
 
   onGoLogin: function() {
     wx.navigateTo({ url: '/pages/login/index' })
   },
 
+  onPrevDay: function() {
+    var d = new Date(this.data.currentDate)
+    d.setDate(d.getDate() - 1)
+    this.setData({ currentDate: formatDate(d), dateDisplay: formatDateCN(d) })
+    this.loadPlan(formatDate(d))
+  },
+
+  onNextDay: function() {
+    var d = new Date(this.data.currentDate)
+    d.setDate(d.getDate() + 1)
+    this.setData({ currentDate: formatDate(d), dateDisplay: formatDateCN(d) })
+    this.loadPlan(formatDate(d))
+  },
+
   onGeneratePlan: function() {
     var that = this
-    var baseUrl = getBaseUrl()
     var token = wx.getStorageSync('token')
     wx.showLoading({ title: '生成中...' })
     wx.request({
-      url: baseUrl + API.PLAN_GENERATE,
+      url: BASE_URL + '/api/plan/generate',
       method: 'POST',
       data: { plan_date: that.data.currentDate },
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
+      header: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
       success: function(res) {
         wx.hideLoading()
-        if (res.statusCode >= 200 && res.statusCode < 300) {
+        if (res.statusCode === 200) {
           that.setData({ plan: res.data, hasPlan: true })
           wx.showToast({ title: '计划已生成', icon: 'success' })
         } else {
@@ -189,63 +136,39 @@ Page({
     var that = this
     var plan = that.data.plan
     if (!plan) return
-    var baseUrl = getBaseUrl()
     var token = wx.getStorageSync('token')
     wx.request({
-      url: baseUrl + API.PLAN_COMPLETE(plan.id),
+      url: BASE_URL + '/api/plan/' + plan.id + '/complete?action=' + (plan.completed ? 'cancel' : 'complete'),
       method: 'PUT',
-      data: { completed: !plan.completed },
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
+      header: { 'Authorization': 'Bearer ' + token },
       success: function(res) {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          that.setData({ plan: res.data })
-        }
+        if (res.statusCode === 200) { that.setData({ plan: res.data }) }
       },
-      fail: function() {
-        wx.showToast({ title: '操作失败', icon: 'none' })
-      }
+      fail: function() {}
     })
   },
 
   onToggleExercise: function(e) {
     var that = this
-    var groupIdx = e.currentTarget.dataset.groupindex
-    var exIdx = e.currentTarget.dataset.exerciseindex
+    var gi = e.currentTarget.dataset.groupindex
+    var ei = e.currentTarget.dataset.exerciseindex
     var plan = that.data.plan
     if (!plan) return
-    var baseUrl = getBaseUrl()
+    var ex = plan.plan_data.workout_groups[gi].exercises[ei]
     var token = wx.getStorageSync('token')
-    var ex = plan.plan_data.workout_groups[groupIdx].exercises[exIdx]
     wx.request({
-      url: baseUrl + API.PLAN_EXERCISE_COMPLETE(plan.id),
+      url: BASE_URL + '/api/plan/' + plan.id + '/exercise-complete',
       method: 'PUT',
-      data: { group_index: groupIdx, exercise_index: exIdx, completed: !ex.completed },
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
+      data: { group_index: gi, exercise_index: ei, completed: !ex.completed },
+      header: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
       success: function(res) {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          that.setData({ plan: res.data })
-        }
+        if (res.statusCode === 200) { that.setData({ plan: res.data }) }
       },
-      fail: function() {
-        wx.showToast({ title: '操作失败', icon: 'none' })
-      }
+      fail: function() {}
     })
   },
 
   onViewFullPlan: function() {
     wx.navigateTo({ url: '/pages/plan-detail/index?date=' + this.data.currentDate })
   },
-
-  onShareAppMessage: function() {
-    return {
-      title: '智能健身助手 - AI个性化健身计划',
-      path: '/pages/index/index'
-    }
-  }
 })
