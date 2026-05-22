@@ -1,3 +1,7 @@
+var httpModule = require('../../utils/request')
+var http = httpModule.http
+var { API } = require('../../utils/constants')
+
 Page({
   data: {
     isRegister: false,
@@ -6,43 +10,54 @@ Page({
     confirmPassword: '',
   },
 
-  async onWechatLogin() {
-    try {
-      wx.showLoading({ title: '登录中...' })
-      const { code } = await wx.login()
-      const { http } = require('../../utils/request')
-      const res = await http.wechatLogin(code)
-      http.setToken(res.access_token)
-      wx.hideLoading()
-      wx.switchTab({ url: '/pages/index/index' })
-    } catch (err) {
-      wx.hideLoading()
-      wx.showToast({ title: err.message || '微信登录失败', icon: 'none' })
-    }
+  onWechatLogin: function() {
+    wx.login({
+      success: function(res) {
+        if (!res.code) {
+          wx.showToast({ title: '微信登录失败', icon: 'none' })
+          return
+        }
+        wx.showLoading({ title: '登录中...' })
+        http.wechatLogin(res.code).then(function(data) {
+          wx.hideLoading()
+          http.setToken(data.access_token)
+          wx.switchTab({ url: '/pages/index/index' })
+        }).catch(function(err) {
+          wx.hideLoading()
+          wx.showToast({ title: '微信登录失败', icon: 'none' })
+        })
+      },
+      fail: function() {
+        wx.showToast({ title: '微信登录失败', icon: 'none' })
+      }
+    })
   },
 
-  async onAccountLogin() {
-    const { username, password } = this.data
-    if (!username.trim() || !password.trim()) {
+  onAccountLogin: function() {
+    var that = this
+    var username = that.data.username
+    var password = that.data.password
+    if (!username || !password) {
       wx.showToast({ title: '请输入用户名和密码', icon: 'none' })
       return
     }
-    try {
-      wx.showLoading({ title: '登录中...' })
-      const { http } = require('../../utils/request')
-      const res = await http.login(username, password)
-      http.setToken(res.access_token)
+    wx.showLoading({ title: '登录中...' })
+    http.login(username, password).then(function(data) {
       wx.hideLoading()
+      http.setToken(data.access_token)
       wx.switchTab({ url: '/pages/index/index' })
-    } catch (err) {
+    }).catch(function(err) {
       wx.hideLoading()
       wx.showToast({ title: err.message || '登录失败', icon: 'none' })
-    }
+    })
   },
 
-  async onRegister() {
-    const { username, password, confirmPassword } = this.data
-    if (!username.trim() || !password.trim()) {
+  onRegister: function() {
+    var that = this
+    var username = that.data.username
+    var password = that.data.password
+    var confirmPassword = that.data.confirmPassword
+    if (!username || !password) {
       wx.showToast({ title: '请输入用户名和密码', icon: 'none' })
       return
     }
@@ -50,33 +65,32 @@ Page({
       wx.showToast({ title: '两次密码不一致', icon: 'none' })
       return
     }
-    try {
-      wx.showLoading({ title: '注册中...' })
-      const { http } = require('../../utils/request')
-      await http.register(username, password)
-      const res = await http.login(username, password)
-      http.setToken(res.access_token)
+    wx.showLoading({ title: '注册中...' })
+    http.register(username, password).then(function() {
+      return http.login(username, password)
+    }).then(function(data) {
       wx.hideLoading()
+      http.setToken(data.access_token)
       wx.switchTab({ url: '/pages/index/index' })
-    } catch (err) {
+    }).catch(function(err) {
       wx.hideLoading()
       wx.showToast({ title: err.message || '注册失败', icon: 'none' })
-    }
+    })
   },
 
-  onToggleMode() {
+  onToggleMode: function() {
     this.setData({ isRegister: !this.data.isRegister })
   },
 
-  onUsernameInput(e) {
+  onUsernameInput: function(e) {
     this.setData({ username: e.detail.value })
   },
 
-  onPasswordInput(e) {
+  onPasswordInput: function(e) {
     this.setData({ password: e.detail.value })
   },
 
-  onConfirmPasswordInput(e) {
+  onConfirmPasswordInput: function(e) {
     this.setData({ confirmPassword: e.detail.value })
   },
 })

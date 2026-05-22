@@ -1,29 +1,22 @@
-const { http } = require('../../utils/request')
-const { API } = require('../../utils/constants')
-const { formatDate, formatDateCN } = require('../../utils/formatters')
+var httpModule = require('../../utils/request')
+var http = httpModule.http
+var { formatDate, formatDateCN } = require('../../utils/formatters')
+var { API } = require('../../utils/constants')
 
 Page({
   data: {
+    loggedIn: false,
+    loading: false,
     currentDate: '',
     dateDisplay: '',
     plan: null,
-    weather: null,
-    motivation: '坚持就是胜利',
-    loading: true,
     hasPlan: false,
-    loggedIn: false,
+    weather: null,
+    motivation: '',
   },
 
-  onLoad() {
-    const now = new Date()
-    this.setData({
-      currentDate: formatDate(now),
-      dateDisplay: formatDateCN(now),
-    })
-  },
-
-  onShow() {
-    const token = wx.getStorageSync('token')
+  onShow: function() {
+    var token = wx.getStorageSync('token')
     if (!token) {
       this.setData({ loggedIn: false, loading: false })
       return
@@ -32,108 +25,149 @@ Page({
     this.loadAllData()
   },
 
-  async loadAllData() {
-    this.setData({ loading: true })
-    try {
-      const results = await Promise.allSettled([
-        http.get(API.PLAN_BY_DATE(this.data.currentDate)),
-        http.get(API.SYSTEM_WEATHER),
-        http.get(API.SYSTEM_MOTIVATION),
-      ])
+  onPullDownRefresh: function() {
+    if (this.data.loggedIn) {
+      this.loadAllData()
+    }
+    wx.stopPullDownRefresh()
+  },
 
-      const plan = results[0].status === 'fulfilled' ? results[0].value : null
-      const weather = results[1].status === 'fulfilled' ? results[1].value : null
-      const motivation = results[2].status === 'fulfilled' ? results[2].value : null
+  loadAllData: function() {
+    var that = this
+    var today = new Date()
+    var dateStr = formatDate(today)
+    that.setData({
+      currentDate: dateStr,
+      dateDisplay: formatDateCN(today),
+      loading: true
+    })
 
-      this.setData({
-        plan,
-        weather: weather || null,
-        motivation: motivation?.quote || '坚持就是胜利',
-        hasPlan: !!plan && !!plan.plan_data,
-        loading: false,
+    that.loadPlan(dateStr)
+    that.loadWeather()
+    that.loadMotivation()
+  },
+
+  loadPlan: function(date) {
+    var that = this
+    http.get(API.PLAN_BY_DATE(date)).then(function(res) {
+      that.setData({
+        plan: res,
+        hasPlan: true,
+        loading: false
       })
-    } catch (err) {
-      console.error('loadAllData error', err)
-      this.setData({ loading: false, hasPlan: false })
-    }
-  },
-
-  onPrevDay() {
-    const d = new Date(this.data.currentDate)
-    d.setDate(d.getDate() - 1)
-    this.setData({
-      currentDate: formatDate(d),
-      dateDisplay: formatDateCN(d),
-    })
-    this.loadAllData()
-  },
-
-  onNextDay() {
-    const d = new Date(this.data.currentDate)
-    d.setDate(d.getDate() + 1)
-    this.setData({
-      currentDate: formatDate(d),
-      dateDisplay: formatDateCN(d),
-    })
-    this.loadAllData()
-  },
-
-  async onGeneratePlan() {
-    try {
-      wx.showLoading({ title: '生成计划中...' })
-      const plan = await http.post(API.PLAN_GENERATE, { plan_date: this.data.currentDate })
-      this.setData({ plan, hasPlan: true })
-      wx.hideLoading()
-      wx.showToast({ title: '计划已生成', icon: 'success' })
-    } catch (err) {
-      wx.hideLoading()
-      wx.showToast({ title: err.message || '生成失败', icon: 'none' })
-    }
-  },
-
-  async onToggleComplete() {
-    if (!this.data.plan) return
-    try {
-      await http.put(API.PLAN_COMPLETE(this.data.plan.id))
-      const plan = { ...this.data.plan, completed: !this.data.plan.completed }
-      this.setData({ plan })
-      wx.vibrateShort({ type: 'light' })
-    } catch (err) {
-      wx.showToast({ title: err.message || '操作失败', icon: 'none' })
-    }
-  },
-
-  async onToggleExercise(e) {
-    const { groupindex, exerciseindex } = e.currentTarget.dataset
-    const plan = JSON.parse(JSON.stringify(this.data.plan))
-    const exercise = plan.plan_data.workout_groups[groupindex].exercises[exerciseindex]
-    try {
-      await http.put(API.PLAN_EXERCISE_COMPLETE(plan.id), {
-        group_index: groupindex,
-        exercise_index: exerciseindex,
+    }).catch(function() {
+      that.setData({
+        plan: null,
+        hasPlan: false,
+        loading: false
       })
-      exercise.completed = !exercise.completed
-      this.setData({ plan })
-      wx.vibrateShort({ type: 'light' })
-    } catch (err) {
-      wx.showToast({ title: err.message || '操作失败', icon: 'none' })
-    }
-  },
-
-  onViewFullPlan() {
-    wx.navigateTo({
-      url: `/pages/plan-detail/index?date=${this.data.currentDate}`,
     })
   },
 
-  onGoLogin() {
+  loadWeather: function() {
+    var that = this
+    var location = wx.getStorageSync('user_location') || ''
+    http.get(API.SYSTEM_WEATHER + (location ? '?location=' + location : '')).then(function(res) {
+      that.setData({ weather: res })
+    }).catch(function() {
+      that.setData({ weather: null })
+    })
+  },
+
+  loadMotivation: function() {
+    var that = this
+    http.get(API.SYSTEM_MOTIVATION).then(function(res) {
+      var text = (res && res.text) ? res.text : '坚持就是胜利'
+      that.setData({ motivation: text })
+    }).catch(function() {
+      that.setData({ motivation: '坚持就是胜利' })
+    })
+  },
+
+  onPrevDay: function() {
+    var current = new Date(this.data.currentDate)
+    current.setDate(current.getDate() - 1)
+    var dateStr = formatDate(current)
+    this.setData({
+      currentDate: dateStr,
+      dateDisplay: formatDateCN(current),
+      loading: true
+    })
+    this.loadPlan(dateStr)
+  },
+
+  onNextDay: function() {
+    var current = new Date(this.data.currentDate)
+    current.setDate(current.getDate() + 1)
+    var dateStr = formatDate(current)
+    this.setData({
+      currentDate: dateStr,
+      dateDisplay: formatDateCN(current),
+      loading: true
+    })
+    this.loadPlan(dateStr)
+  },
+
+  onGoLogin: function() {
     wx.navigateTo({ url: '/pages/login/index' })
   },
 
-  onShareAppMessage() {
-    return {
-      title: '智能健身助手 - AI驱动的个性化健身计划',
-      path: '/pages/index/index',
-    }
+  onGeneratePlan: function() {
+    var that = this
+    wx.showLoading({ title: '生成中...' })
+    http.post(API.PLAN_GENERATE + '?date=' + that.data.currentDate).then(function(res) {
+      wx.hideLoading()
+      that.setData({ plan: res, hasPlan: true })
+      wx.showToast({ title: '计划已生成', icon: 'success' })
+    }).catch(function(err) {
+      wx.hideLoading()
+      wx.showToast({ title: '生成失败', icon: 'none' })
+    })
   },
+
+  onToggleComplete: function() {
+    var that = this
+    var plan = that.data.plan
+    if (!plan) return
+
+    var action = plan.completed ? 'cancel' : 'complete'
+    http.put(API.PLAN_COMPLETE(plan.id) + '?action=' + action).then(function(res) {
+      that.setData({ plan: res })
+      if (res.completed) {
+        wx.vibrateShort({ type: 'light' })
+      }
+    }).catch(function() {
+      wx.showToast({ title: '操作失败', icon: 'none' })
+    })
+  },
+
+  onToggleExercise: function(e) {
+    var that = this
+    var groupIdx = e.currentTarget.dataset.groupindex
+    var exIdx = e.currentTarget.dataset.exerciseindex
+    var plan = that.data.plan
+    if (!plan) return
+
+    var ex = plan.plan_data.workout_groups[groupIdx].exercises[exIdx]
+    http.put(API.PLAN_EXERCISE_COMPLETE(plan.id), {
+      group_index: groupIdx,
+      exercise_index: exIdx,
+      completed: !ex.completed
+    }).then(function(res) {
+      that.setData({ plan: res })
+    }).catch(function() {
+      wx.showToast({ title: '操作失败', icon: 'none' })
+    })
+  },
+
+  onViewFullPlan: function() {
+    wx.navigateTo({ url: '/pages/plan-detail/index?date=' + this.data.currentDate })
+  },
+
+  onShareAppMessage: function() {
+    return {
+      title: '智能健身助手 - AI个性化健身计划',
+      path: '/pages/index/index'
+    }
+  }
 })

@@ -10,7 +10,6 @@
     "pages/plan-detail/index"
   ],
   "window": {
-    "navigationStyle": "custom",
     "backgroundColor": "#1A1A2E",
     "backgroundTextStyle": "light"
   },

@@ -1,5 +1,6 @@
-const { http } = require('../../utils/request')
-const { API } = require('../../utils/constants')
+var httpModule = require('../../utils/request')
+var http = httpModule.http
+var { API } = require('../../utils/constants')
 
 Page({
   data: {
@@ -8,19 +9,19 @@ Page({
     loading: true,
   },
 
-  onLoad(options) {
+  onLoad: function(options) {
     if (options.date) {
       this.setData({ date: options.date })
       this.loadPlan(options.date)
     }
   },
 
-  async loadPlan(date) {
-    try {
-      const plan = await http.get(API.PLAN_BY_DATE(date))
-      this.setData({ plan, loading: false })
-    } catch (e) {
-      this.setData({ loading: false })
-    }
+  loadPlan: function(date) {
+    var that = this
+    http.get(API.PLAN_BY_DATE(date)).then(function(res) {
+      that.setData({ plan: res, loading: false })
+    }).catch(function() {
+      that.setData({ loading: false })
+    })
   },
 })
