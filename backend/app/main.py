@@ -47,7 +47,13 @@ def _migrate_db():
         ("user_profiles", "training_cycle_days", "INTEGER DEFAULT 28"),
         ("user_profiles", "cycle_start_date", "DATE"),
         ("user_profiles", "selected_muscle_groups", "JSON"),
+        ("user_profiles", "location_lat", "DECIMAL(10,8)"),
+        ("user_profiles", "location_lng", "DECIMAL(11,8)"),
         ("users", "wechat_openid", "VARCHAR(128)"),
+        ("user_model_configs", "provider_type", "VARCHAR(20) DEFAULT 'claude'"),
+        ("user_model_configs", "base_url", "VARCHAR(500)"),
+        ("user_model_configs", "api_key", "VARCHAR(500)"),
+        ("user_model_configs", "model_name", "VARCHAR(100)"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
