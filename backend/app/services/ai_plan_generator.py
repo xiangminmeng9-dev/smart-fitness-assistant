@@ -794,4 +794,3 @@ async def generate_fitness_plan(
     except Exception as e:
         print(f"[AI] Unexpected error: {e}, falling back to mock plan")
         return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
-        )
