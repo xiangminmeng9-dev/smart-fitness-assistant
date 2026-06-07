@@ -760,7 +760,7 @@ async def generate_fitness_plan(
 
         provider = get_ai_provider(provider_type, base_url, api_key)
         try:
-            response_text = await provider.generate(prompt, model_name, max_tokens=8000)
+            response_text = await provider.generate(prompt, model_name, max_tokens=4000)
         except Exception as api_err:
             # If auth/path error, try the other provider format automatically
             err_str = str(api_err)
@@ -769,7 +769,7 @@ async def generate_fitness_plan(
                 print(f"  {provider_type} format failed ({err_str[:80]}), trying {alt_type} format...")
                 try:
                     alt_provider = get_ai_provider(alt_type, base_url, api_key)
-                    response_text = await alt_provider.generate(prompt, model_name, max_tokens=8000)
+                    response_text = await alt_provider.generate(prompt, model_name, max_tokens=4000)
                 except Exception as alt_err:
                     raise HTTPException(
                         status_code=status.HTTP_502_BAD_GATEWAY,

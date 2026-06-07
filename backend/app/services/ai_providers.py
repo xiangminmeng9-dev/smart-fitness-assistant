@@ -59,7 +59,7 @@ class AnthropicProvider(AIProvider):
                     "max_tokens": max_tokens,
                     "messages": [{"role": "user", "content": prompt}],
                 },
-                timeout=60.0,
+                timeout=120.0,
             )
             response.raise_for_status()
             result = response.json()
@@ -79,7 +79,7 @@ class OpenAICompatibleProvider(AIProvider):
                     "max_tokens": max_tokens,
                     "messages": [{"role": "user", "content": prompt}],
                 },
-                timeout=60.0,
+                timeout=120.0,
             )
             response.raise_for_status()
             result = response.json()
