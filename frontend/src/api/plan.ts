@@ -38,8 +38,22 @@ export const planApi = {
     return response.data;
   },
 
-  generatePlan: async (date: string): Promise<FitnessPlan> => {
-    const response = await api.post('/plan/generate', { plan_date: date });
+  generatePlan: async (date: string, muscleGroups?: string[]): Promise<FitnessPlan> => {
+    const payload: any = { plan_date: date };
+    if (muscleGroups && muscleGroups.length > 0) {
+      payload.muscle_groups = muscleGroups;
+    }
+    const response = await api.post('/plan/generate', payload);
+    return response.data;
+  },
+
+  getSchedule: async (date: string): Promise<{
+    plan_date: string;
+    muscle_groups: string[];
+    is_rest_day: boolean;
+    available_muscle_groups: string[];
+  }> => {
+    const response = await api.get(`/plan/schedule/${date}`);
     return response.data;
   },
 

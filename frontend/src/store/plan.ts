@@ -14,14 +14,19 @@ interface PlanStore {
   isGenerating: boolean;
   isWeatherLoading: boolean;
   error: string | null;
+  scheduledMuscleGroups: string[] | null;
+  isRestDay: boolean;
+  availableMuscleGroups: string[];
+  isScheduleLoading: boolean;
 
   fetchTodayPlan: (date: string) => Promise<void>;
-  generateTodayPlan: (date: string) => Promise<boolean>;
+  generateTodayPlan: (date: string, muscleGroups?: string[]) => Promise<boolean>;
   toggleComplete: (planId: number, completed: boolean) => Promise<void>;
   toggleExerciseComplete: (planId: number, groupIndex: number, exerciseIndex: number, completed: boolean) => Promise<void>;
   setSelectedDate: (date: string) => void;
   fetchWeather: (lat?: number, lng?: number, targetDate?: string) => Promise<void>;
   fetchMotivation: (targetDate?: string) => Promise<void>;
+  fetchSchedule: (date: string) => Promise<void>;
 }
 
 const usePlanStore = create<PlanStore>((set, get) => ({
@@ -33,6 +38,10 @@ const usePlanStore = create<PlanStore>((set, get) => ({
   isGenerating: false,
   isWeatherLoading: false,
   error: null,
+  scheduledMuscleGroups: null,
+  isRestDay: false,
+  availableMuscleGroups: [],
+  isScheduleLoading: false,
 
   setSelectedDate: (date: string) => {
     set({ selectedDate: date, weather: null }); // Clear weather when date changes
@@ -55,10 +64,10 @@ const usePlanStore = create<PlanStore>((set, get) => ({
     }
   },
 
-  generateTodayPlan: async (date: string) => {
+  generateTodayPlan: async (date: string, muscleGroups?: string[]) => {
     set({ isGenerating: true, error: null });
     try {
-      const plan = await planApi.generatePlan(date);
+      const plan = await planApi.generatePlan(date, muscleGroups);
       set({ todayPlan: plan, isGenerating: false });
       toast.success('健身计划生成成功！');
       return true;
@@ -121,6 +130,21 @@ const usePlanStore = create<PlanStore>((set, get) => ({
       set({ motivation });
     } catch {
       // silent fail for motivation
+    }
+  },
+
+  fetchSchedule: async (date: string) => {
+    set({ isScheduleLoading: true });
+    try {
+      const schedule = await planApi.getSchedule(date);
+      set({
+        scheduledMuscleGroups: schedule.muscle_groups,
+        isRestDay: schedule.is_rest_day,
+        availableMuscleGroups: schedule.available_muscle_groups,
+        isScheduleLoading: false,
+      });
+    } catch {
+      set({ scheduledMuscleGroups: null, isScheduleLoading: false });
     }
   },
 }));

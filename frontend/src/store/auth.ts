@@ -101,7 +101,11 @@ const useAuthStore = create<AuthStore>()(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
-        if (state) state._hasHydrated = true;
+        if (state) {
+          state._hasHydrated = true;
+        } else {
+          useAuthStore.setState({ _hasHydrated: true });
+        }
       },
     }
   )

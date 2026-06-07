@@ -85,17 +85,36 @@ const SettingsPage = () => {
 
           <div className="space-y-6 max-w-2xl">
             <div>
+              <label className="block text-sm font-medium text-gray-700">API 格式 <span className="text-red-500">*</span></label>
+              <div className="mt-1">
+                <select
+                  value={formData.provider_type || 'custom'}
+                  onChange={(e) => setFormData({ ...formData, provider_type: e.target.value })}
+                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                >
+                  <option value="custom">OpenAI 兼容格式（推荐，适用于大部分中转站）</option>
+                  <option value="claude">Anthropic 原生格式（仅官方API或支持的原生中转）</option>
+                  <option value="kimi">Kimi (Moonshot)</option>
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="glm">GLM (智谱清言)</option>
+                  <option value="minimax">MiniMax</option>
+                </select>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">大多数中转站和第三方服务请选"OpenAI 兼容格式"</p>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700">API Base URL <span className="text-red-500">*</span></label>
               <div className="mt-1">
                 <input
                   type="text"
                   value={formData.base_url || ''}
                   onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
-                  placeholder="例如: https://api.openai.com 或您的中转站地址"
+                  placeholder="例如: https://api.openai.com 或 https://your-proxy.com/v1"
                   className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500">输入 API 服务地址，支持 OpenAI 兼容格式的任意服务</p>
+              <p className="mt-1 text-xs text-gray-500">输入 API 服务地址，路径中的 /v1 会自动处理，无需手动去除</p>
             </div>
 
             <div>
@@ -206,8 +225,10 @@ const SettingsPage = () => {
           <div className="ml-3">
             <h3 className="text-sm font-medium text-blue-800">使用说明</h3>
             <div className="mt-2 text-sm text-blue-700 space-y-1">
-              <p>• 输入您的 API 服务地址和 Key，支持 OpenAI 兼容格式的任意服务。</p>
-              <p>• 常见服务: OpenAI、Claude 中转站、DeepSeek、Kimi、智谱等。</p>
+              <p>• 大多数中转站请选 OpenAI 兼容格式，仅 Anthropic 官方API选原生格式。</p>
+              <p>• Base URL 中的 /v1 路径会自动处理，输入 https://xxx.com 或 https://xxx.com/v1 均可。</p>
+              <p>• 测试连接时会自动尝试两种认证格式，一种失败会切换另一种。</p>
+              <p>• 常见服务: Claude 中转站、OpenAI、DeepSeek、Kimi、智谱等。</p>
               <p>• 您的 API Key 仅保存在服务器，不会在页面中完整显示。</p>
             </div>
           </div>

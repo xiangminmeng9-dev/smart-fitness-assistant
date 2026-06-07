@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import usePlanStore from '../store/plan';
 import useProfileStore from '../store/profile';
+import toast from 'react-hot-toast';
 
 // Dashboard 组件
 import {
@@ -15,12 +16,24 @@ import {
 
 type MealSource = 'self_cook' | 'takeout' | 'eat_out';
 
+const MUSCLE_GROUP_ICONS: Record<string, string> = {
+  '胸': '🫁', '背': '🔙', '肩': '💪', '腿': '🦵',
+  '手臂': '🤜', '腹部': '🎯', '核心': '🧘', '有氧': '🏃'
+};
+
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const { todayPlan, weather, motivation, selectedDate, isLoading, isGenerating, isWeatherLoading, fetchTodayPlan, generateTodayPlan, toggleExerciseComplete, setSelectedDate, fetchWeather, fetchMotivation } = usePlanStore();
+  const {
+    todayPlan, weather, motivation, selectedDate, isLoading, isGenerating,
+    isWeatherLoading, error, scheduledMuscleGroups, isRestDay, availableMuscleGroups,
+    isScheduleLoading, fetchTodayPlan, generateTodayPlan, toggleExerciseComplete,
+    setSelectedDate, fetchWeather, fetchMotivation, fetchSchedule
+  } = usePlanStore();
   const { profile, fetchProfile } = useProfileStore();
   const [mealSource, setMealSource] = useState<MealSource>('self_cook');
   const [locationName, setLocationName] = useState('');
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [showRegenerate, setShowRegenerate] = useState(false);
 
   useEffect(() => {
     fetchTodayPlan(selectedDate);
@@ -40,9 +53,40 @@ const DashboardPage = () => {
     }
   }, [profile, selectedDate]);
 
-  const handleGenerate = async () => {
+  // Fetch schedule when no plan exists
+  useEffect(() => {
+    if (!todayPlan) {
+      fetchSchedule(selectedDate);
+    }
+  }, [selectedDate, todayPlan]);
+
+  // Initialize selected groups from schedule
+  useEffect(() => {
+    if (scheduledMuscleGroups && selectedGroups.length === 0) {
+      setSelectedGroups(scheduledMuscleGroups);
+    }
+  }, [scheduledMuscleGroups]);
+
+  const toggleGroup = (group: string) => {
+    setSelectedGroups(prev =>
+      prev.includes(group) ? prev.filter(g => g !== group) : [...prev, group]
+    );
+  };
+
+  const handleGenerate = async (groups: string[]) => {
     if (!profile) { navigate('/profile'); return; }
-    await generateTodayPlan(selectedDate);
+    const success = await generateTodayPlan(selectedDate, groups.length > 0 ? groups : undefined);
+    if (!success && error) {
+      // Show user-friendly error based on error content
+      if (error.includes('AI服务未配置') || error.includes('API Key')) {
+        toast.error('请先在"设置"中配置AI模型的API Key', { duration: 5000 });
+      } else if (error.includes('AI服务调用失败') || error.includes('502')) {
+        toast.error('AI服务暂时不可用，请稍后重试或检查API配置', { duration: 5000 });
+      } else if (error.includes('503')) {
+        toast.error('AI服务未就绪，请在设置中配置API Key', { duration: 5000 });
+      }
+    }
+    setShowRegenerate(false);
   };
 
   const changeDate = (offset: number) => {
@@ -92,12 +136,22 @@ const DashboardPage = () => {
 
       {!todayPlan && (
         <>
-          <NoPlanCard isGenerating={isGenerating} hasProfile={!!profile} onGenerate={handleGenerate} />
+          <MuscleGroupSelectorCard
+            isGenerating={isGenerating}
+            hasProfile={!!profile}
+            onGenerate={handleGenerate}
+            scheduledGroups={scheduledMuscleGroups}
+            availableGroups={availableMuscleGroups}
+            isRestDay={isRestDay}
+            isScheduleLoading={isScheduleLoading}
+            selectedGroups={selectedGroups}
+            onToggleGroup={toggleGroup}
+          />
           {profile && <FitnessTips goal={profile.fitness_goal} />}
         </>
       )}
 
-      {todayPlan && plan && (
+      {todayPlan && plan && !showRegenerate && (
         <>
           <SplitDayBanner plan={plan} isCompleted={todayPlan.completed} />
           {plan.weather_impact && <WeatherImpact text={plan.weather_impact} />}
@@ -109,7 +163,31 @@ const DashboardPage = () => {
           <MealSection meals={plan.meal_plan} source={mealSource} onSourceChange={setMealSource} />
           {plan.calorie_summary && <CalorieSummary summary={plan.calorie_summary} />}
           {plan.recommendations?.length > 0 && <RecommendationsCard items={plan.recommendations} />}
+          <div className="flex justify-center">
+            <button
+              onClick={() => { setShowRegenerate(true); fetchSchedule(selectedDate); setSelectedGroups([]); }}
+              className="px-6 py-2.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-800 transition text-sm"
+            >
+              重新生成今日计划
+            </button>
+          </div>
         </>
+      )}
+
+      {todayPlan && showRegenerate && (
+        <MuscleGroupSelectorCard
+          isGenerating={isGenerating}
+          hasProfile={!!profile}
+          onGenerate={handleGenerate}
+          scheduledGroups={scheduledMuscleGroups}
+          availableGroups={availableMuscleGroups}
+          isRestDay={isRestDay}
+          isScheduleLoading={isScheduleLoading}
+          selectedGroups={selectedGroups}
+          onToggleGroup={toggleGroup}
+          isRegenerate
+          onCancel={() => setShowRegenerate(false)}
+        />
       )}
     </div>
   );
@@ -117,7 +195,7 @@ const DashboardPage = () => {
 
 export default DashboardPage;
 
-/* ---- 辅助组件（保留在页面内的小组件）---- */
+/* ---- 辅助组件 ---- */
 
 function MotivationBanner({ quote }: { quote: string }) {
   return (
@@ -144,22 +222,103 @@ function SplitDayBanner({ plan, isCompleted }: { plan: { training_split: string;
   );
 }
 
-function NoPlanCard({ isGenerating, hasProfile, onGenerate }: { isGenerating: boolean; hasProfile: boolean; onGenerate: () => void }) {
+function MuscleGroupSelectorCard({
+  isGenerating,
+  hasProfile,
+  onGenerate,
+  scheduledGroups,
+  availableGroups,
+  isRestDay,
+  isScheduleLoading,
+  selectedGroups,
+  onToggleGroup,
+  isRegenerate = false,
+  onCancel,
+}: {
+  isGenerating: boolean;
+  hasProfile: boolean;
+  onGenerate: (groups: string[]) => void;
+  scheduledGroups: string[] | null;
+  availableGroups: string[];
+  isRestDay: boolean;
+  isScheduleLoading: boolean;
+  selectedGroups: string[];
+  onToggleGroup: (group: string) => void;
+  isRegenerate?: boolean;
+  onCancel?: () => void;
+}) {
+  const isCustomized = JSON.stringify(selectedGroups) !== JSON.stringify(scheduledGroups || []);
+
   return (
-    <div className="bg-white rounded-xl shadow-lg p-10 text-center">
-      <svg className="mx-auto h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+      <svg className="mx-auto h-14 w-14 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
       </svg>
-      <h2 className="mt-4 text-xl font-semibold text-gray-900">今日还没有健身计划</h2>
-      <p className="mt-2 text-gray-500">{hasProfile ? '点击下方按钮，AI将为您生成专业健身计划' : '请先填写个人信息，再生成健身计划'}</p>
-      <button onClick={onGenerate} disabled={isGenerating} className="mt-6 px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-md transition-all disabled:opacity-50">
-        {isGenerating ? (
-          <span className="flex items-center justify-center">
-            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-            AI生成中...
-          </span>
-        ) : hasProfile ? '生成今日计划' : '去填写个人信息'}
-      </button>
+      <h2 className="mt-3 text-xl font-semibold text-gray-900">今日还没有健身计划</h2>
+
+      {isScheduleLoading ? (
+        <div className="mt-4 flex justify-center">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+        </div>
+      ) : availableGroups.length > 0 ? (
+        <div className="mt-4">
+          {isRestDay && scheduledGroups?.length === 0 ? (
+            <div>
+              <p className="text-gray-500">今日为休息日</p>
+              <p className="text-sm text-gray-400 mt-1">您可以选择肌群覆盖休息日安排</p>
+            </div>
+          ) : (
+            <p className="text-gray-500 mb-3">
+              {isCustomized ? '✏️ 已自定义肌群组合' : '🎯 系统推荐肌群（点击可修改）'}
+            </p>
+          )}
+          <div className="flex flex-wrap justify-center gap-3">
+            {availableGroups.map(group => {
+              const selected = selectedGroups.includes(group);
+              return (
+                <button
+                  key={group}
+                  type="button"
+                  onClick={() => onToggleGroup(group)}
+                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full border-2 transition-all text-sm font-medium ${
+                    selected
+                      ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
+                      : 'border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-500'
+                  }`}
+                >
+                  <span>{MUSCLE_GROUP_ICONS[group] || '💪'}</span>
+                  <span>{group}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="mt-4 text-gray-500">请先在个人信息中选择训练肌群</p>
+      )}
+
+      <div className="flex gap-3 justify-center mt-6">
+        {isRegenerate && onCancel && (
+          <button
+            onClick={onCancel}
+            className="px-6 py-3 border border-gray-300 text-gray-600 font-medium rounded-lg hover:bg-gray-50 transition"
+          >
+            取消
+          </button>
+        )}
+        <button
+          onClick={() => onGenerate(selectedGroups)}
+          disabled={isGenerating || !hasProfile || selectedGroups.length === 0}
+          className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isGenerating ? (
+            <span className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+              AI生成中...
+            </span>
+          ) : !hasProfile ? '去填写个人信息' : isRegenerate ? '重新生成' : '生成今日计划'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -223,9 +382,16 @@ function FitnessTips({ goal }: { goal?: '减脂' | '增肌' }) {
     { icon: '⏰', title: '训练后补充', desc: '训练后30分钟内补充蛋白质和碳水，促进肌肉恢复和生长' },
     { icon: '📈', title: '渐进超负荷', desc: '每周尝试增加重量或次数，持续给肌肉新的刺激' },
   ];
+  const antiAgingTips = [
+    { icon: '💪', title: '力量抗衰', desc: '力量训练维持肌肉量和基础代谢，是抗衰老的基石' },
+    { icon: '🧍', title: '体态年轻', desc: '驼背和腹部突出是显老杀手，核心训练和日常姿势至关重要' },
+    { icon: '☀️', title: '防晒护肤', desc: '做好防晒SPF30+，坚持清洁+保湿+防晒的基础护肤流程' },
+    { icon: '👁️', title: '眼部状态', desc: '疲劳的眼神让人显老，保证睡眠和适当眼部放松' },
+  ];
 
-  const tips = goal === '减脂' ? fatLossTips : goal === '增肌' ? muscleGainTips : [...fatLossTips.slice(0, 2), ...muscleGainTips.slice(0, 2)];
-  const title = goal === '减脂' ? '减脂小贴士' : goal === '增肌' ? '增肌小贴士' : '健身小贴士';
+  const goalTips = goal === '减脂' ? fatLossTips : goal === '增肌' ? muscleGainTips : [...fatLossTips.slice(0, 2), ...muscleGainTips.slice(0, 2)];
+  const tips = [...goalTips.slice(0, 3), antiAgingTips[Math.floor(Math.random() * antiAgingTips.length)]];
+  const title = goal === '减脂' ? '减脂与抗衰贴士' : goal === '增肌' ? '增肌与抗衰贴士' : '健身与抗衰贴士';
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
