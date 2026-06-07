@@ -581,11 +581,10 @@ async def generate_fitness_plan(
         base_url = base_url or provider_info.default_base_url
         model_name = model_name or provider_info.default_model
 
+    # If no API key available, use mock plan directly
     if not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI服务未配置，请在设置中配置AI模型的API Key后重试",
-        )
+        print("[AI] No API key configured, using mock plan")
+        return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
 
     try:
         muscle_str = "、".join(muscle_groups) if muscle_groups else "休息日"
@@ -760,7 +759,15 @@ async def generate_fitness_plan(
 
         provider = get_ai_provider(provider_type, base_url, api_key)
         try:
-            response_text = await provider.generate(prompt, model_name, max_tokens=4000)
+            import asyncio
+            # Allow 50s for AI to respond — Vercel Hobby allows up to 300s
+            response_text = await asyncio.wait_for(
+                provider.generate(prompt, model_name, max_tokens=4000),
+                timeout=50.0
+            )
+        except asyncio.TimeoutError:
+            print(f"[AI] AI call timed out (50s), falling back to mock plan")
+            return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
         except Exception as api_err:
             # If auth/path error, try the other provider format automatically
             err_str = str(api_err)
@@ -768,32 +775,23 @@ async def generate_fitness_plan(
                 alt_type = "custom" if provider_type == "claude" else "claude"
                 print(f"  {provider_type} format failed ({err_str[:80]}), trying {alt_type} format...")
                 try:
-                    alt_provider = get_ai_provider(alt_type, base_url, api_key)
-                    response_text = await alt_provider.generate(prompt, model_name, max_tokens=4000)
-                except Exception as alt_err:
-                    raise HTTPException(
-                        status_code=status.HTTP_502_BAD_GATEWAY,
-                        detail=f"AI服务调用失败（已尝试两种格式）: {str(alt_err)}，请检查API配置",
+                    response_text = await asyncio.wait_for(
+                        get_ai_provider(alt_type, base_url, api_key).generate(prompt, model_name, max_tokens=4000),
+                        timeout=50.0
                     )
+                except (asyncio.TimeoutError, Exception) as alt_err:
+                    print(f"[AI] Both formats failed, falling back to mock plan. Error: {alt_err}")
+                    return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
             else:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=f"AI服务调用失败：{err_str}，请重试",
-                )
+                print(f"[AI] AI call failed: {err_str[:100]}, falling back to mock plan")
+                return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
 
         try:
             return json.loads(response_text)
         except json.JSONDecodeError:
-            print(f"Error parsing AI response JSON. Raw response: {response_text[:200]}")
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="AI返回的数据格式异常，请重试",
-            )
-    except HTTPException:
-        raise
+            print(f"[AI] Failed to parse AI JSON response, falling back to mock plan. Raw: {response_text[:200]}")
+            return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
     except Exception as e:
-        print(f"Error calling AI Provider API: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"AI服务调用失败：{str(e)}，请检查API配置或重试",
+        print(f"[AI] Unexpected error: {e}, falling back to mock plan")
+        return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
         )
