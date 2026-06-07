@@ -89,6 +89,35 @@ async def get_fitness_plan_by_date(
     return plan
 
 
+@router.get("/schedule/{plan_date}")
+async def get_schedule_for_date(
+    plan_date: date,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取指定日期的自动分配肌群（用于前端预览和自定义）"""
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=400, detail="请先填写个人信息")
+
+    muscle_groups = get_today_muscle_groups(
+        selected_muscle_groups=profile.selected_muscle_groups,
+        fitness_frequency=profile.fitness_frequency or 3,
+        cycle_start_date=profile.cycle_start_date,
+        training_cycle_days=profile.training_cycle_days or 28,
+        plan_date=plan_date,
+    )
+
+    is_rest_day = muscle_groups is None
+
+    return {
+        "plan_date": plan_date,
+        "muscle_groups": muscle_groups or [],
+        "is_rest_day": is_rest_day,
+        "available_muscle_groups": profile.selected_muscle_groups or [],
+    }
+
+
 @router.post("/generate", response_model=FitnessPlanResponse)
 async def generate_new_fitness_plan(
     plan_data: FitnessPlanGenerate,
@@ -105,24 +134,26 @@ async def generate_new_fitness_plan(
     ).first()
 
     if existing_plan:
-        raise HTTPException(
-            status_code=400,
-            detail="Fitness plan already exists for this date"
-        )
+        # Allow regeneration: delete old plan first
+        db.delete(existing_plan)
+        db.commit()
 
     # Get user profile for AI generation
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
     if not profile:
         raise HTTPException(status_code=400, detail="User profile required to generate plan")
 
-    # Determine today's muscle groups from schedule
-    muscle_groups = get_today_muscle_groups(
-        selected_muscle_groups=profile.selected_muscle_groups,
-        fitness_frequency=profile.fitness_frequency or 3,
-        cycle_start_date=profile.cycle_start_date,
-        training_cycle_days=profile.training_cycle_days or 28,
-        plan_date=plan_data.plan_date,
-    )
+    # Determine today's muscle groups - use custom if provided, otherwise auto-assign
+    if plan_data.muscle_groups is not None and len(plan_data.muscle_groups) > 0:
+        muscle_groups = plan_data.muscle_groups
+    else:
+        muscle_groups = get_today_muscle_groups(
+            selected_muscle_groups=profile.selected_muscle_groups,
+            fitness_frequency=profile.fitness_frequency or 3,
+            cycle_start_date=profile.cycle_start_date,
+            training_cycle_days=profile.training_cycle_days or 28,
+            plan_date=plan_data.plan_date,
+        )
 
     # Get weather info if available
     weather_info = None
@@ -140,6 +171,12 @@ async def generate_new_fitness_plan(
     model_config = db.query(UserModelConfig).filter(
         UserModelConfig.user_id == current_user.id
     ).first()
+
+    # Debug: log model config state
+    if model_config:
+        print(f"[Plan] User {current_user.id} model_config: provider={model_config.provider_type}, base_url={model_config.base_url}, api_key_set={bool(model_config.api_key)}, model={model_config.model_name}")
+    else:
+        print(f"[Plan] User {current_user.id} has NO model_config, will use system defaults")
 
     # Generate plan using AI
     plan_content = await generate_fitness_plan(
@@ -178,8 +215,25 @@ async def mark_plan_completed(
         raise HTTPException(status_code=404, detail="Fitness plan not found")
 
     plan.completed = completed
+    if completed:
+        plan_data = copy.deepcopy(plan.plan_data)
+        groups = plan_data.get("workout_groups", [])
+        for g in groups:
+            for ex in g.get("exercises", []):
+                ex["exercise_completed"] = True
+        plan.plan_data = plan_data
+        flag_modified(plan, "plan_data")
+    else:
+        plan_data = copy.deepcopy(plan.plan_data)
+        groups = plan_data.get("workout_groups", [])
+        for g in groups:
+            for ex in g.get("exercises", []):
+                ex["exercise_completed"] = False
+        plan.plan_data = plan_data
+        flag_modified(plan, "plan_data")
     db.commit()
-    return {"message": "Plan updated successfully", "completed": completed}
+    db.refresh(plan)
+    return plan
 
 
 @router.put("/{plan_id}/exercise-complete", response_model=FitnessPlanResponse)

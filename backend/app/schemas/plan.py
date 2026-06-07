@@ -11,6 +11,7 @@ class FitnessPlanCreate(FitnessPlanBase):
 
 class FitnessPlanGenerate(BaseModel):
     plan_date: date = Field(..., description="计划日期")
+    muscle_groups: Optional[List[str]] = Field(None, description="自定义肌群组合，为空则使用系统自动分配")
 
 class FitnessPlanUpdate(BaseModel):
     completed: Optional[bool] = None

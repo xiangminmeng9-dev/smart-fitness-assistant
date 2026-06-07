@@ -83,10 +83,9 @@ def update_model_config(
     # If api_key is empty string or pure stars (masked), don't update it
     if "api_key" in update_data:
         key_val = update_data["api_key"]
-        if not key_val or key_val.startswith("sk-****"):
+        if not key_val or key_val.startswith("****"):
+            # User didn't enter a new key — keep the existing one
             del update_data["api_key"]
-            if not key_val and config:  # User explicitly cleared it
-                update_data["api_key"] = None
 
     if config:
         for k, v in update_data.items():
@@ -114,20 +113,20 @@ def delete_model_config(
 async def test_model_config(config_in: ModelConfigCreate, current_user: User = Depends(get_current_user)):
     try:
         from app.core.config import settings
-        
+
         provider_type = config_in.provider_type
         base_url = config_in.base_url
         api_key = config_in.api_key
         model_name = config_in.model_name
-        
+
         # Look up defaults if not provided
         provider_info = next((p for p in PROVIDERS if p.type == provider_type), PROVIDERS[0])
-        
+
         if not base_url:
             base_url = provider_info.default_base_url
         if not model_name:
             model_name = provider_info.default_model
-            
+
         # If masked key provided, need to fetch from DB
         if api_key and api_key.startswith("sk-****"):
             from app.core.database import SessionLocal
@@ -138,15 +137,36 @@ async def test_model_config(config_in: ModelConfigCreate, current_user: User = D
                     api_key = db_config.api_key
             finally:
                 db.close()
-                
+
         if not api_key:
             api_key = settings.CLAUDE_API_KEY
             if provider_type == settings.AI_PROVIDER and not api_key:
                 return {"success": False, "error": "请提供 API Key"}
 
+        # Try with the selected provider type first
         provider = get_ai_provider(provider_type, base_url, api_key)
-        response = await provider.generate("Respond with a single word: OK", model_name, max_tokens=10)
-        
-        return {"success": True, "message": response}
+        try:
+            response = await provider.generate("Respond with a single word: OK", model_name, max_tokens=10)
+            return {"success": True, "message": response}
+        except Exception as e1:
+            err1 = str(e1)
+            # If 401 or 404, try the other format (many proxies support OpenAI-compatible even for Claude)
+            if "401" in err1 or "404" in err1 or "403" in err1:
+                alt_type = "custom" if provider_type == "claude" else "claude"
+                try:
+                    alt_provider = get_ai_provider(alt_type, base_url, api_key)
+                    response = await alt_provider.generate("Respond with a single word: OK", model_name, max_tokens=10)
+                    return {
+                        "success": True,
+                        "message": response,
+                        "hint": f"{provider_type} 格式认证失败，自动切换为 {alt_type} 格式成功。建议将 provider_type 改为 {alt_type}。",
+                    }
+                except Exception as e2:
+                    err2 = str(e2)
+                    return {
+                        "success": False,
+                        "error": f"两种格式均失败:\n• {provider_type} 格式: {err1}\n• {alt_type} 格式: {err2}\n请检查 API Key 和 Base URL 是否正确。",
+                    }
+            return {"success": False, "error": err1}
     except Exception as e:
         return {"success": False, "error": str(e)}

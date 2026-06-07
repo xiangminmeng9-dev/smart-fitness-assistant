@@ -3,6 +3,7 @@ import json
 import random
 from datetime import date
 from typing import Dict, Any, List, Optional
+from fastapi import HTTPException, status
 
 from app.core.config import settings
 from app.models.user import UserProfile, UserModelConfig
@@ -378,10 +379,18 @@ def generate_mock_plan(
         # Intensity multiplier for sets
         set_mult = {"deload": 0.7, "light": 0.8, "medium": 1.0, "heavy": 1.15}.get(intensity, 1.0)
 
-        for mg in muscle_groups:
-            exercises_pool = EXERCISE_DB.get(mg, EXERCISE_DB.get("有氧", []))
-            # Pick 3-4 exercises, varied by seed
+        # 目标差异越大，训练容量越大（更多组数/动作）
+        weight_urgency = context.get("targets", {}).get("weight_urgency", 0) if context else 0
+        if weight_urgency > 0.5:
+            set_mult *= 1.1  # 大目标差异：额外加10%容量
+            pick_count = 5 if intensity != "deload" else 4
+        elif weight_urgency > 0.2:
+            pick_count = 4 if intensity != "deload" else 3
+        else:
             pick_count = 3 if intensity == "deload" else 4
+
+        for mg in muscle_groups:
+            exercises_pool = EXERCISE_DB.get(mg, EXERCISE_DB["胸"])
             picked = rng.sample(exercises_pool, min(pick_count, len(exercises_pool)))
 
             exercises = []
@@ -449,6 +458,22 @@ def generate_mock_plan(
             "可以进行轻度活动如散步、瑜伽，促进恢复。",
             "保证充足睡眠(7-9小时)，这是恢复的关键。",
         ]
+
+    # 抗衰老/保持年轻建议
+    ANTI_AGING_TIPS = [
+        "💪 抗衰老提醒：力量训练是维持肌肉量和基础代谢的基石，坚持就是最好的抗衰老。",
+        "🧍 体态提醒：驼背和腹部突出是显老的头号杀手，注意核心训练和日常姿势。",
+        "☀️ 护肤提醒：做好防晒（SPF30+），坚持清洁+保湿+防晒的基础护肤流程。",
+        "👁️ 眼部提醒：疲劳的眼神让人显老，保证充足睡眠，适当做眼部放松。",
+        "🍬 饮食提醒：控制糖分摄入，减少精加工食品，多摄入优质蛋白和健康脂肪。",
+        "🧠 心理提醒：保持好奇心和学习习惯，持续给大脑新的刺激，心态年轻才是真年轻。",
+        "🤝 社交提醒：保持社交活跃，与朋友家人的互动能有效缓解压力、提升幸福感。",
+        "💇 形象提醒：发型和穿搭对年轻感影响巨大，定期修剪发型，选择合身的衣物。",
+    ]
+    age = profile.age if profile.age else 25
+    if age >= 25:
+        anti_aging_count = 2 if age >= 35 else 1
+        recs.extend(rng.sample(ANTI_AGING_TIPS, min(anti_aging_count, len(ANTI_AGING_TIPS))))
 
     # --- Progress tracking ---
     progress_info = {
@@ -529,10 +554,25 @@ async def generate_fitness_plan(
     }
 
     # Determine provider details
-    provider_type = model_config.provider_type if model_config else settings.AI_PROVIDER
-    base_url = model_config.base_url if model_config and model_config.base_url else None
-    api_key = model_config.api_key if model_config and model_config.api_key else settings.CLAUDE_API_KEY
-    model_name = model_config.model_name if model_config and model_config.model_name else None
+    # Priority: user's model_config > DEFAULT_AI_* env vars > system defaults
+    if model_config:
+        provider_type = model_config.provider_type
+        base_url = model_config.base_url if model_config.base_url else None
+        api_key = model_config.api_key if model_config.api_key else None
+        model_name = model_config.model_name if model_config.model_name else None
+    else:
+        # No user config in DB (common on Vercel serverless with SQLite)
+        # Fall back to DEFAULT_AI_* env vars, then system defaults
+        provider_type = settings.DEFAULT_AI_PROVIDER or settings.AI_PROVIDER
+        base_url = settings.DEFAULT_AI_BASE_URL or None
+        api_key = settings.DEFAULT_AI_API_KEY or None
+        model_name = settings.DEFAULT_AI_MODEL or None
+
+    # Final fallback to system defaults
+    if not api_key:
+        api_key = settings.CLAUDE_API_KEY
+
+    print(f"[AI] provider_type={provider_type}, base_url={base_url}, api_key_set={bool(api_key)}, model_name={model_name}")
 
     # Try to resolve defaults if not set
     if not base_url or not model_name:
@@ -542,7 +582,10 @@ async def generate_fitness_plan(
         model_name = model_name or provider_info.default_model
 
     if not api_key:
-        return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI服务未配置，请在设置中配置AI模型的API Key后重试",
+        )
 
     try:
         muscle_str = "、".join(muscle_groups) if muscle_groups else "休息日"
@@ -553,6 +596,22 @@ async def generate_fitness_plan(
         # Get feasibility info for AI prompt
         feasibility = targets.get("feasibility", {})
 
+        # 目标体重差异
+        weight_diff = round(weight - target_weight, 1)
+        abs_weight_diff = round(abs(weight_diff), 1)
+        reference_weight = targets.get("reference_weight", weight)
+        weight_urgency = targets.get("weight_urgency", 0)
+
+        # 位置信息（用于推荐附近餐饮）
+        location_info = ""
+        if profile.location_lat and profile.location_lng:
+            location_info = f"""
+用户位置：纬度{profile.location_lat}，经度{profile.location_lng}
+请根据用户所在城市，推荐当地真实的外卖店铺、超市食材、堂食餐厅：
+- 外卖：使用当地真实外卖平台（美团/饿了么）上常见的真实店铺名和菜品
+- 超市/自煮：推荐当地超市（如盒马/山姆/永辉/大润发等）可买到的真实食材
+- 堂食：推荐当地真实餐厅的菜品（如海底捞、西贝、老乡鸡等连锁或本地知名餐厅）"""
+
         prompt = f"""你是一位拥有10年经验的专业健身教练和营养师。请为以下用户生成专业的个性化健身计划。
 
 用户信息：
@@ -561,6 +620,8 @@ async def generate_fitness_plan(
 - 身高：{height} cm
 - 当前体重：{weight} kg
 - 目标体重：{target_weight} kg
+- 体重差距：{"需减" if weight_diff > 0 else "需增"}{abs_weight_diff} kg
+- 当前阶段参考体重：{reference_weight} kg（随周期进度逐步向目标靠拢）
 - 健身目标：{goal}
 - 每周训练频率：{frequency} 次
 
@@ -571,16 +632,19 @@ async def generate_fitness_plan(
 - 蛋白质目标：{targets['protein_g']}g | 脂肪：{targets['fat_g']}g | 碳水：{targets['carbs_g']}g
 
 目标可行性分析：
+- 体重差距：{abs_weight_diff} kg
 - 每周需变化：{feasibility.get('weekly_change_needed', 0)} kg
 - 可行性评估：{feasibility.get('feasibility', 'unknown')}
 - 健康建议：{feasibility.get('health_note', '')}
 - 预计可达体重：{feasibility.get('predicted_weight', target_weight)} kg
+- 目标紧迫度：{"高（差距较大，需加大训练量和严格控制饮食）" if weight_urgency > 0.5 else "中（需要持续坚持）" if weight_urgency > 0.2 else "低（微调即可）"}
 
 训练周期：
 - 进度：第{cycle_info['current_day']}天 / 共{cycle_info['total_days']}天
 - 本周强度：{cycle_info.get('intensity', 'medium')}
 - 计划日期：{plan_date.isoformat()} ({weekday_name})
 - 周期第{day_in_cycle + 1}天
+{location_info}
 
 今日安排：{"休息日 - 不安排训练，只需饮食计划" if is_rest_day else f"训练肌群：{muscle_str}"}
 
@@ -593,14 +657,22 @@ async def generate_fitness_plan(
 6. 饮食计划要有变化，不要每天一样！今天是周期第{day_in_cycle + 1}天，请生成与其他天不同的菜品
 7. 根据训练强度({cycle_info.get('intensity', 'medium')})调整训练量和饮食
 8. 根据目标可行性分析给出个性化建议
+9. 训练容量必须参考目标体重差距：当前需{"减" if weight_diff > 0 else "增"}{abs_weight_diff} kg，{"差距较大，应增加训练组数和动作数量（每个肌群4-5个动作，每组10-15次），并严格控制饮食" if weight_urgency > 0.5 else "差距适中，保持标准训练量，注意饮食控制" if weight_urgency > 0.2 else "差距较小，维持训练量，微调饮食即可"}
+10. 参考体重{reference_weight} kg用于计算营养目标（随周期进度从{weight}kg向{target_weight}kg逐步调整）
+11. 在recommendations中包含1-2条抗衰老/保持年轻的建议，涵盖以下方面：
+   - 身体层面：力量训练维持肌肉量、有氧保护心肺、睡眠7-8小时、控制糖分多蛋白健康脂肪
+   - 外在形象：防晒护肤（清洁+保湿+SPF）、体态（驼背/腹部突出是显老杀手）、眼部状态、发型穿搭
+   - 心理层面：保持好奇心、社交活跃、压力管理、培养爱好
+   根据用户年龄和训练内容，选择最相关的建议融入recommendations中
 
 饮食要求（每餐提供三种方案，菜品必须不同，卡路里必须不同）：
-1. 自己做：选择适合家庭烹饪的菜品，列出食材和简要做法。例如"鸡胸糙米套餐"、"燕麦蛋白碗"
-2. 点外卖：选择可外卖配送的菜品，使用真实外卖菜品名。例如"轻食鸡胸碗"(沙野轻食)、"黑椒牛肉盖饭"(食其家)
-3. 店里吃：选择餐厅菜品，使用真实餐厅菜品名。例如"清蒸鲈鱼套餐"(粤菜馆)、"寿司刺身拼盘"(日料店)
+1. 自己做：选择适合家庭烹饪的菜品，列出食材（推荐当地超市可购买的）和简要做法。例如"鸡胸糙米套餐"、"燕麦蛋白碗"
+2. 点外卖：选择可外卖配送的菜品，使用真实外卖平台上的真实店铺名和菜品名。例如"轻食鸡胸碗"(沙野轻食)、"黑椒牛肉盖饭"(食其家)
+3. 店里吃：选择餐厅菜品，使用真实餐厅菜品名和餐厅名。例如"清蒸鲈鱼套餐"(粤菜馆)、"寿司刺身拼盘"(日料店)
 4. 三种方案的菜品名称必须完全不同，不能仅改前缀或后缀
 5. 外卖卡路里比自己做高约15%，店里吃比自己做高约10%
 6. 每种方案必须包含 "portion_tip" 字段，给出具体的份量建议（如"主食约1拳头大小"）
+7. 如果有用户位置信息，推荐当地真实可获得的食材、外卖店铺和餐厅
 
 请以JSON格式返回，严格符合以下结构：
 {{
@@ -687,13 +759,41 @@ async def generate_fitness_plan(
 }}"""
 
         provider = get_ai_provider(provider_type, base_url, api_key)
-        response_text = await provider.generate(prompt, model_name, max_tokens=8000)
+        try:
+            response_text = await provider.generate(prompt, model_name, max_tokens=8000)
+        except Exception as api_err:
+            # If auth/path error, try the other provider format automatically
+            err_str = str(api_err)
+            if "401" in err_str or "404" in err_str or "403" in err_str:
+                alt_type = "custom" if provider_type == "claude" else "claude"
+                print(f"  {provider_type} format failed ({err_str[:80]}), trying {alt_type} format...")
+                try:
+                    alt_provider = get_ai_provider(alt_type, base_url, api_key)
+                    response_text = await alt_provider.generate(prompt, model_name, max_tokens=8000)
+                except Exception as alt_err:
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"AI服务调用失败（已尝试两种格式）: {str(alt_err)}，请检查API配置",
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"AI服务调用失败：{err_str}，请重试",
+                )
 
         try:
             return json.loads(response_text)
         except json.JSONDecodeError:
             print(f"Error parsing AI response JSON. Raw response: {response_text[:200]}")
-            return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="AI返回的数据格式异常，请重试",
+            )
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error calling AI Provider API: {e}")
-        return generate_mock_plan(profile, plan_date, muscle_groups, is_rest_day, context, weather_info)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI服务调用失败：{str(e)}，请检查API配置或重试",
+        )

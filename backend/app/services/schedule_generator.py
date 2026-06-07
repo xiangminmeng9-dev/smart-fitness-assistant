@@ -42,18 +42,18 @@ def generate_all_combinations(muscle_groups: List[str], frequency: int) -> List[
     if not muscle_groups:
         return []
     num_groups = len(muscle_groups)
-    # Dynamic: how many groups per training day
-    groups_per_day = max(1, min(3, math.ceil(num_groups / max(1, frequency))))
+    # At least 3 groups per training day for meaningful workouts
+    groups_per_day = max(3, min(num_groups, math.ceil(num_groups * 2 / max(1, frequency))))
     all_combos = []
     # Generate combos of the target size, plus +/- 1 for variety
     sizes = set()
     sizes.add(groups_per_day)
-    if groups_per_day > 1:
+    if groups_per_day > 3:
         sizes.add(groups_per_day - 1)
-    if groups_per_day < min(3, num_groups):
+    if groups_per_day < num_groups:
         sizes.add(groups_per_day + 1)
     for size in sorted(sizes):
-        if size < 1 or size > num_groups:
+        if size < 3 or size > num_groups:
             continue
         for combo in combinations(muscle_groups, size):
             all_combos.append(list(combo))
@@ -335,28 +335,51 @@ def calculate_daily_targets(
         weight_kg, target_weight_kg, cycle_days, fitness_goal
     )
 
+    # 根据周期进度，逐步将参考体重从当前体重向目标体重靠拢
+    # 这样 BMR 和蛋白质计算会随进度动态调整，而非一直用初始体重
+    weight_diff = weight_kg - target_weight_kg
+    abs_diff = abs(weight_diff)
+    if abs_diff > 0 and cycle_days > 0:
+        # 用 day_in_cycle 估算进度（如果没有精确值，用 0）
+        day_in_cycle = feasibility.get("day_in_cycle", 0)
+        progress_ratio = min(1.0, max(0.0, day_in_cycle / cycle_days))
+        # 参考体重 = 当前体重 - (体重差 × 进度)
+        reference_weight = weight_kg - weight_diff * progress_ratio
+    else:
+        reference_weight = weight_kg
+
+    # 用参考体重重新计算 BMR/TDEE，更准确地反映当前阶段代谢水平
+    if abs(reference_weight - weight_kg) > 0.5:
+        bmr = calculate_bmr(reference_weight, height_cm, age, gender)
+        tdee = calculate_tdee(bmr, frequency)
+
     # 基础每日调整量
     base_adjustment = feasibility["daily_calorie_adjustment"]
+
+    # 目标差异越大，训练容量和饮食策略越激进
+    # weight_urgency: 0=几乎无差异, 1=差异很大（>10kg）
+    weight_urgency = min(1.0, abs_diff / 10.0) if abs_diff > 1 else 0
 
     # 训练日/休息日调整
     if fitness_goal == "减脂":
         if is_training_day:
             # 训练日：正常缺口，保证训练能量
             daily_adjustment = base_adjustment
-            protein_per_kg = 2.2  # 训练日需要更多蛋白质
+            # 目标差异大时需要更多蛋白质保护肌肉
+            protein_per_kg = 2.2 + weight_urgency * 0.3  # 2.2 ~ 2.5
         else:
             # 休息日：可以稍微多减一点
             daily_adjustment = base_adjustment + 100
-            protein_per_kg = 2.0
+            protein_per_kg = 2.0 + weight_urgency * 0.2  # 2.0 ~ 2.2
     else:  # 增肌
         if is_training_day:
             # 训练日：正常盈余
             daily_adjustment = base_adjustment
-            protein_per_kg = 2.0
+            protein_per_kg = 2.0 + weight_urgency * 0.3  # 2.0 ~ 2.3
         else:
             # 休息日：盈余略少
             daily_adjustment = base_adjustment + 100  # 盈余减少（base是负数）
-            protein_per_kg = 1.8
+            protein_per_kg = 1.8 + weight_urgency * 0.2  # 1.8 ~ 2.0
 
     # 计算目标热量
     if fitness_goal == "减脂":
@@ -365,8 +388,8 @@ def calculate_daily_targets(
     else:
         daily_calorie_target = tdee + abs(daily_adjustment)
 
-    # 营养素计算
-    protein_g = round(weight_kg * protein_per_kg)
+    # 营养素计算 — 蛋白质用参考体重
+    protein_g = round(reference_weight * protein_per_kg)
 
     # 脂肪：占总热量20-30%
     fat_ratio = 0.25 if is_training_day else 0.22
@@ -386,4 +409,6 @@ def calculate_daily_targets(
         "carbs_g": carbs_g,
         "feasibility": feasibility,
         "is_training_day": is_training_day,
+        "reference_weight": round(reference_weight, 1),
+        "weight_urgency": round(weight_urgency, 2),
     }

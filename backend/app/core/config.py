@@ -23,10 +23,17 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # AI Provider (system default)
-    AI_PROVIDER: str = "claude"  # claude, kimi, glm, minimax, deepseek
+    AI_PROVIDER: str = "claude"  # claude, kimi, glm, minimax, deepseek, custom
     CLAUDE_API_KEY: str = ""
     CLAUDE_BASE_URL: str = "https://api.anthropic.com"
     CLAUDE_MODEL: str = "claude-opus-4-6"
+
+    # User-configurable defaults (set via Vercel env vars for serverless)
+    # These serve as fallback when DB doesn't persist (e.g. SQLite on serverless)
+    DEFAULT_AI_PROVIDER: str = ""  # Override AI_PROVIDER if set
+    DEFAULT_AI_BASE_URL: str = ""  # Override base URL if set
+    DEFAULT_AI_API_KEY: str = ""   # Override API key if set
+    DEFAULT_AI_MODEL: str = ""     # Override model name if set
 
     # Weather API
     WEATHER_API_KEY: str = ""

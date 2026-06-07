@@ -26,7 +26,11 @@ if os.environ.get("POSTGRES_URL"):
         echo=settings.APP_ENV == "development"
     )
 elif settings.DB_TYPE == "sqlite":
-    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "fitness.db")
+    # On Vercel/serverless, use /tmp for SQLite (ephemeral but writable)
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        db_path = "/tmp/fitness.db"
+    else:
+        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "fitness.db")
     SQLALCHEMY_DATABASE_URL = f"sqlite:///{db_path}"
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
