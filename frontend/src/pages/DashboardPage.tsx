@@ -153,7 +153,16 @@ const DashboardPage = () => {
 
       {todayPlan && plan && !showRegenerate && (
         <>
-          <SplitDayBanner plan={plan} isCompleted={todayPlan.completed} />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1"><SplitDayBanner plan={plan} isCompleted={todayPlan.completed} /></div>
+            <button
+              onClick={() => { setShowRegenerate(true); fetchSchedule(selectedDate); setSelectedGroups([]); }}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-indigo-200 text-indigo-600 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition text-sm font-medium shadow-sm"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              重新生成
+            </button>
+          </div>
           {plan.weather_impact && <WeatherImpact text={plan.weather_impact} />}
           {plan.warmup?.length > 0 && <PhaseCard title="热身阶段" icon="🔥" items={plan.warmup} bg="from-orange-50 to-amber-50" border="border-orange-100" />}
           {plan.workout_groups?.map((group, gi) => (
@@ -163,14 +172,6 @@ const DashboardPage = () => {
           <MealSection meals={plan.meal_plan} source={mealSource} onSourceChange={setMealSource} />
           {plan.calorie_summary && <CalorieSummary summary={plan.calorie_summary} />}
           {plan.recommendations?.length > 0 && <RecommendationsCard items={plan.recommendations} />}
-          <div className="flex justify-center">
-            <button
-              onClick={() => { setShowRegenerate(true); fetchSchedule(selectedDate); setSelectedGroups([]); }}
-              className="px-6 py-2.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-800 transition text-sm"
-            >
-              重新生成今日计划
-            </button>
-          </div>
         </>
       )}
 
